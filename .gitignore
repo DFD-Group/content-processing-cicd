@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Git
+*.orig
+
+# .NET
+bin/
+obj/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db

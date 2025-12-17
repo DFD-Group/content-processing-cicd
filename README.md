@@ -18,3 +18,11 @@ Monorepo for the **Content Processing** platform, including three deployable ser
 
 - Windows Server hosting (service-wrapped execution)
 - REST endpoints exposed for all services
+
+Monorepo services:
+- auth (.NET) — 8080
+- pdf-renderer (.NET) — 8081
+- text2image (FastAPI) — 8082
+
+Health:
+- GET /health -> JSON contains "status":"UP"
