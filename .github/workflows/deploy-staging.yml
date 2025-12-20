@@ -1,0 +1,176 @@
+name: Deploy - Staging
+
+on:
+  push:
+    branches: ["staging"]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, windows]
+    environment: staging
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET (pinned by global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Setup Python (pinned by .python-version)
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Compute release version + environment root
+        run: |
+          # Release folder version format: 0.0.1+<shortsha>
+          $ShortSha = "${{ github.sha }}".Substring(0,7)
+          $Version  = "0.0.1+$ShortSha"
+          "REL_VERSION=$Version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          # Staging root folder on server
+          "ENV_ROOT=D:\services\content-processing\staging" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # -----------------------
+      # Build / stage outputs
+      # -----------------------
+      - name: Publish AuthService (Release)
+        run: |
+          dotnet restore ".\services\auth\AuthService.csproj"
+          dotnet build   ".\services\auth\AuthService.csproj" -c Release --no-restore
+          dotnet publish ".\services\auth\AuthService.csproj" -c Release --no-build -o ".\_out\auth\app"
+
+      - name: Publish PdfRendererService (Release)
+        run: |
+          dotnet restore ".\services\pdf-renderer\PdfRendererService.csproj"
+          dotnet build   ".\services\pdf-renderer\PdfRendererService.csproj" -c Release --no-restore
+          dotnet publish ".\services\pdf-renderer\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
+
+      - name: Stage text2image source
+        run: |
+          # Package python service source; venv will be created inside the release folder
+          New-Item -ItemType Directory -Force -Path ".\_out\text2image" | Out-Null
+          Copy-Item ".\services\text2image\*" ".\_out\text2image" -Recurse -Force
+
+      # -----------------------
+      # Deploy: stop -> copy -> junction switch -> start
+      # -----------------------
+      - name: Deploy services (atomic current switch)
+        run: |
+          $EnvRoot = "${{ env.ENV_ROOT }}"
+          $Version = "${{ env.REL_VERSION }}"
+
+          function Ensure-Dirs($ServiceName) {
+            $SvcRoot = Join-Path $EnvRoot $ServiceName
+
+            # Ensure standard layout exists
+            New-Item -ItemType Directory -Force -Path `
+              (Join-Path $SvcRoot "releases"),
+              (Join-Path $SvcRoot "shared\config"),
+              (Join-Path $SvcRoot "shared\logs"),
+              (Join-Path $SvcRoot "shared\data"),
+              (Join-Path $SvcRoot "winsw") | Out-Null
+
+            return $SvcRoot
+          }
+
+          function Switch-CurrentJunction($SvcRoot, $ReleaseDir) {
+            # Replace current junction atomically (remove the junction link then recreate)
+            $Current = Join-Path $SvcRoot "current"
+            if (Test-Path $Current) {
+              cmd.exe /c "rmdir `"$Current`""
+            }
+            cmd.exe /c "mklink /J `"$Current`" `"$ReleaseDir`""
+          }
+
+          function Deploy-Service($ServiceName, $SourcePath, $WinswExe, $NeedsVenv) {
+            $SvcRoot    = Ensure-Dirs $ServiceName
+            $ReleaseDir = Join-Path $SvcRoot "releases\$Version"
+            $AppDir     = Join-Path $ReleaseDir "app"
+
+            # Stop service before switching/overwriting anything
+            & $WinswExe stop
+
+            # Create release structure
+            New-Item -ItemType Directory -Force -Path $AppDir | Out-Null
+
+            # Copy payload into releases\<version>\app
+            Copy-Item "$SourcePath\*" $AppDir -Recurse -Force
+
+            if ($NeedsVenv) {
+              # Create venv inside the release so current\venv points to the active release's venv
+              $VenvDir = Join-Path $ReleaseDir "venv"
+              python -m venv $VenvDir
+
+              # Install dependencies into that venv
+              & (Join-Path $VenvDir "Scripts\python.exe") -m pip install --upgrade pip
+              & (Join-Path $VenvDir "Scripts\pip.exe") install -r (Join-Path $AppDir "requirements.txt")
+            }
+
+            # Switch current -> releases\<version>
+            Switch-CurrentJunction $SvcRoot $ReleaseDir
+
+            # Start service after switch
+            & $WinswExe start
+          }
+
+          Deploy-Service -ServiceName "auth" `
+            -SourcePath ".\_out\auth\app" `
+            -WinswExe "D:\services\content-processing\staging\auth\winsw\AuthService-Staging.exe" `
+            -NeedsVenv:$false
+
+          Deploy-Service -ServiceName "pdf-renderer" `
+            -SourcePath ".\_out\pdf-renderer\app" `
+            -WinswExe "D:\services\content-processing\staging\pdf-renderer\winsw\PdfRendererService-Staging.exe" `
+            -NeedsVenv:$false
+
+          Deploy-Service -ServiceName "text2image" `
+            -SourcePath ".\_out\text2image" `
+            -WinswExe "D:\services\content-processing\staging\text2image\winsw\Text2Image-Staging.exe" `
+            -NeedsVenv:$true
+
+      # -----------------------
+      # Health gates
+      # -----------------------
+      - name: Health gate (8080/8081/8082)
+        run: |
+          function Wait-Health($Url, $Name) {
+            # Retry up to ~60 seconds total
+            for ($i=1; $i -le 20; $i++) {
+              try {
+                $r = curl.exe -sS $Url
+                Write-Host "$Name health response: $r"
+                return
+              } catch {
+                Start-Sleep -Seconds 3
+              }
+            }
+            throw "$Name health check failed: $Url"
+          }
+
+          Wait-Health "http://localhost:8080/health" "AuthService"
+          Wait-Health "http://localhost:8081/health" "PdfRendererService"
+          Wait-Health "http://localhost:8082/health" "Text2Image"
+      - name: Collect diagnostics (staging)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-diagnostics-staging-${{ github.run_number }}-${{ github.sha }}
+          path: |
+            D:\services\content-processing\staging\auth\shared\logs\*
+            D:\services\content-processing\staging\pdf-renderer\shared\logs\*
+            D:\services\content-processing\staging\text2image\shared\logs\*
+            D:\services\content-processing\staging\auth\winsw\AuthService-Staging.xml
+            D:\services\content-processing\staging\pdf-renderer\winsw\PdfRendererService-Staging.xml
+            D:\services\content-processing\staging\text2image\winsw\Text2Image-Staging.xml
+          if-no-files-found: warn
+          retention-days: 14

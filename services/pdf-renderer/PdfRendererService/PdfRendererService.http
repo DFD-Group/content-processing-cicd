@@ -1,0 +1,6 @@
+@PdfRendererService_HostAddress = http://localhost:5193
+
+GET {{PdfRendererService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
