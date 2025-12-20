@@ -17,7 +17,7 @@ jobs:
     runs-on: [self-hosted, windows]
     defaults:
       run:
-        shell: powershell
+      shell: powershell
 
     steps:
       - name: Checkout
@@ -123,4 +123,3 @@ jobs:
           path: .\_zips\*.zip
           if-no-files-found: error
           retention-days: 14
-

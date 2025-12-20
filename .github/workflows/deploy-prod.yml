@@ -144,3 +144,4 @@ jobs:
            D:\services\content-processing\prod\text2image\winsw\Text2Image-Prod.xml
          if-no-files-found: warn
          retention-days: 14
+
