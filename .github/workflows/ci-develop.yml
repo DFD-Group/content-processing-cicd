@@ -53,17 +53,17 @@ jobs:
       - name: Restore (AuthService)
         run: |
           # Restore NuGet dependencies for AuthService
-          dotnet restore ".\services\auth\AuthService.csproj"
+          dotnet restore ".\services\auth\AuthService\AuthService.csproj"
 
       - name: Build (AuthService) - Release
         run: |
           # Build AuthService in Release mode (no restore, because it was already restored)
-          dotnet build ".\services\auth\AuthService.csproj" -c Release --no-restore
+          dotnet build ".\services\auth\AuthService\AuthService.csproj" -c Release --no-restore
 
       - name: Publish (AuthService) - Release
         run: |
           # Publish produces the deployable output folder (exe + deps)
-          dotnet publish ".\services\auth\AuthService.csproj" -c Release --no-build -o ".\_out\auth\app"
+          dotnet publish ".\services\auth\AuthService\AuthService.csproj" -c Release --no-build -o ".\_out\auth\app"
 
       # -----------------------
       # PdfRendererService (.NET)
@@ -71,17 +71,17 @@ jobs:
       - name: Restore (PdfRendererService)
         run: |
           # Restore NuGet dependencies for PdfRendererService
-          dotnet restore ".\services\pdf-renderer\PdfRendererService.csproj"
+          dotnet restore ".\services\pdf-renderer\PdfRendererServic\PdfRendererService.csproj"
 
       - name: Build (PdfRendererService) - Release
         run: |
           # Build PdfRendererService in Release mode
-          dotnet build ".\services\pdf-renderer\PdfRendererService.csproj" -c Release --no-restore
+          dotnet build ".\services\pdf-renderer\PdfRendererServic\PdfRendererService.csproj" -c Release --no-restore
 
       - name: Publish (PdfRendererService) - Release
         run: |
           # Publish produces the deployable output folder (exe + deps)
-          dotnet publish ".\services\pdf-renderer\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
+          dotnet publish ".\services\pdf-renderer\PdfRendererServic\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
 
       # -----------------------
       # text2image (Python)
