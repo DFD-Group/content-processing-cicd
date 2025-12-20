@@ -15,9 +15,6 @@ jobs:
   build:
     name: Build & Package (Windows self-hosted)
     runs-on: [self-hosted, windows]
-    env:
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}\dotnet
-      DOTNET_MULTILEVEL_LOOKUP: 0
     defaults:
       run:
        shell: powershell
@@ -47,6 +44,9 @@ jobs:
       # -----------------------
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}\dotnet
+          DOTNET_MULTILEVEL_LOOKUP: 0
         with:
           global-json-file: global.json
 
