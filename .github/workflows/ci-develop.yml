@@ -17,7 +17,7 @@ jobs:
     runs-on: [self-hosted, windows]
     defaults:
       run:
-      shell: powershell
+       shell: powershell
 
     steps:
       - name: Checkout
