@@ -16,9 +16,4 @@ jobs:
         run: |
           # Run the stub script from the repo (executes on the staging server runner)
           # Using Windows PowerShell because pwsh is not available on this server.
-          .\infra\deploy\Deploy-Service.ps1 `
-            -Env staging `
-            -Service auth `
-            -Version "0.0.0-smoke"
-            -CheckServy
-
+          .\infra\deploy\Deploy-Service.ps1 -Env staging -Service auth -Version "0.0.0-smoke" -CheckServy
