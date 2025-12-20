@@ -20,4 +20,5 @@ jobs:
             -Env staging `
             -Service auth `
             -Version "0.0.0-smoke"
+            -CheckServy
 
