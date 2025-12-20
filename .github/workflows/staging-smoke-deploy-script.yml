@@ -1,0 +1,23 @@
+name: Staging - Smoke (Deploy script stub)
+
+on:
+  workflow_dispatch: # Manual trigger so we can test safely without touching services
+
+jobs:
+  smoke:
+    # This must match your self-hosted runner labels on the STAGING server
+    runs-on: [self-hosted, windows, staging]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Pulls the repo onto the staging server runner workspace
+
+      - name: Run deploy script stub
+        shell: pwsh
+        run: |
+          # Call the stub script from the repo (runs on the staging server runner)
+          .\infra\deploy\Deploy-Service.ps1 `
+            -Env staging `
+            -Service auth `
+            -Version "0.0.0-smoke"
+
