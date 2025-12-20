@@ -4,7 +4,7 @@
 param(
   [Parameter(Mandatory)][ValidateSet("staging","prod")][string]$Env,     # Target environment
   [Parameter(Mandatory)][ValidateSet("auth","pdf-renderer","text2image")][string]$Service,  # Target service
-  [Parameter(Mandatory)][string]$Version                                # Release version
+  [Parameter(Mandatory)][string]$Version,                                # Release version
   [Parameter()][switch]$CheckServy # Optional flag: when supplied, verify servy-cli is available
 )
 
