@@ -1,0 +1,126 @@
+name: CI (develop) - build & package
+
+on:
+  push:
+    branches: ["develop"]
+  pull_request:
+    branches: ["develop"]
+
+concurrency:
+  # Prevent overlapping runs on the same branch from wasting the self-hosted runner
+  group: ci-develop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Package (Windows self-hosted)
+    runs-on: [self-hosted, windows]
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable git long paths
+        run: |
+          # Helps avoid Windows path length issues during checkout/build
+          git config core.longpaths true
+          git config --get core.longpaths 
+
+      - name: Set build variables
+        id: vars
+        run: |
+          # Short SHA used in artifact names
+          $ShortSha = "${{ github.sha }}".Substring(0,7)
+          "SHORT_SHA=$ShortSha" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          # Standard output folders inside the job workspace
+          New-Item -ItemType Directory -Force -Path ".\_out\auth", ".\_out\pdf-renderer", ".\_out\text2image", ".\_zips" | Out-Null
+
+      # -----------------------
+      # AuthService (.NET)
+      # -----------------------
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore (AuthService)
+        run: |
+          # Restore NuGet dependencies for AuthService
+          dotnet restore ".\services\auth\AuthService.csproj"
+
+      - name: Build (AuthService) - Release
+        run: |
+          # Build AuthService in Release mode (no restore, because it was already restored)
+          dotnet build ".\services\auth\AuthService.csproj" -c Release --no-restore
+
+      - name: Publish (AuthService) - Release
+        run: |
+          # Publish produces the deployable output folder (exe + deps)
+          dotnet publish ".\services\auth\AuthService.csproj" -c Release --no-build -o ".\_out\auth\app"
+
+      # -----------------------
+      # PdfRendererService (.NET)
+      # -----------------------
+      - name: Restore (PdfRendererService)
+        run: |
+          # Restore NuGet dependencies for PdfRendererService
+          dotnet restore ".\services\pdf-renderer\PdfRendererService.csproj"
+
+      - name: Build (PdfRendererService) - Release
+        run: |
+          # Build PdfRendererService in Release mode
+          dotnet build ".\services\pdf-renderer\PdfRendererService.csproj" -c Release --no-restore
+
+      - name: Publish (PdfRendererService) - Release
+        run: |
+          # Publish produces the deployable output folder (exe + deps)
+          dotnet publish ".\services\pdf-renderer\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
+
+      # -----------------------
+      # text2image (Python)
+      # -----------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Validate text2image structure
+        run: |
+          # Fail fast if expected files are missing
+          if (!(Test-Path ".\services\text2image\requirements.txt")) { throw "Missing services/text2image/requirements.txt" }
+          if (!(Test-Path ".\services\text2image\app\main.py")) { Write-Host "Note: app/main.py not found; verify your uvicorn entrypoint." }
+
+      - name: Dependency sanity check (text2image)
+        run: |
+          # Basic pip sanity check (does not create a deploy venv; deployment will do that per-release)
+          python -m pip install --upgrade pip
+          pip install -r ".\services\text2image\requirements.txt"
+
+      - name: Package source (text2image)
+        run: |
+          # Copy python service source + requirements into artifact output
+          Copy-Item ".\services\text2image\*" ".\_out\text2image" -Recurse -Force
+
+      # -----------------------
+      # Create ZIPs (Artifacts)
+      # -----------------------
+      - name: Create ZIP artifacts
+        run: |
+          # Zip each deployable unit separately
+          Compress-Archive -Path ".\_out\auth\*"        -DestinationPath ".\_zips\AuthService-${{ env.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\pdf-renderer\*" -DestinationPath ".\_zips\PdfRendererService-${{ env.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\text2image\*"   -DestinationPath ".\_zips\text2image-${{ env.SHORT_SHA }}.zip" -Force
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          # One workflow run publishes three ZIPs
+          name: develop-build-${{ github.run_number }}-${{ env.SHORT_SHA }}
+          path: .\_zips\*.zip
+          if-no-files-found: error
+          retention-days: 14
+
