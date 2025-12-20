@@ -1,23 +1,30 @@
 name: Staging - Smoke (Deploy script stub)
 
 on:
-  workflow_dispatch: # Manual trigger so we can test safely without touching services
+  workflow_dispatch: # Manual trigger for safe testing
 
 jobs:
   smoke:
-    # This must match your self-hosted runner labels on the STAGING server
+    # Must match labels on the STAGING WINDOWS self-hosted runner
     runs-on: [self-hosted, windows, staging]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4 # Pulls the repo onto the staging server runner workspace
-
-      - name: Run deploy script stub
-        shell: pwsh
+      - name: Show runner OS (diagnostic)
         run: |
-          # Call the stub script from the repo (runs on the staging server runner)
-          .\infra\deploy\Deploy-Service.ps1 `
+          # Prints the OS GitHub thinks this runner is using
+          echo "runner.os = ${{ runner.os }}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Pull repo to the runner workspace
+
+      - name: Run deploy script stub (Windows PowerShell 5.1)
+        shell: powershell
+        run: |
+          # Fail fast if this is not a Windows runner
+          if ("${{ runner.os }}" -ne "Windows") { throw "This job did not land on a Windows runner." }
+
+          # Run the stub deploy script from the repo (runs on the staging server runner)
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\infra\deploy\Deploy-Service.ps1" `
             -Env staging `
             -Service auth `
             -Version "0.0.0-smoke"
-
