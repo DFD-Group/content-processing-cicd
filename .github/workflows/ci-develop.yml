@@ -71,17 +71,17 @@ jobs:
       - name: Restore (PdfRendererService)
         run: |
           # Restore NuGet dependencies for PdfRendererService
-          dotnet restore ".\services\pdf-renderer\PdfRendererServic\PdfRendererService.csproj"
+          dotnet restore ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj"
 
       - name: Build (PdfRendererService) - Release
         run: |
           # Build PdfRendererService in Release mode
-          dotnet build ".\services\pdf-renderer\PdfRendererServic\PdfRendererService.csproj" -c Release --no-restore
+          dotnet build ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-restore
 
       - name: Publish (PdfRendererService) - Release
         run: |
           # Publish produces the deployable output folder (exe + deps)
-          dotnet publish ".\services\pdf-renderer\PdfRendererServic\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
+          dotnet publish ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
 
       # -----------------------
       # text2image (Python)
