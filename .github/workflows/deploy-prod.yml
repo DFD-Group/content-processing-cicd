@@ -130,10 +130,10 @@ jobs:
           Wait-Health "http://localhost:8080/health" "AuthService"
           Wait-Health "http://localhost:8081/health" "PdfRendererService"
           Wait-Health "http://localhost:8082/health" "Text2Image"
-     - name: Collect diagnostics (production)
-       if: failure()
-       uses: actions/upload-artifact@v4
-       with:
+      - name: Collect diagnostics (production)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
          name: deploy-diagnostics-prod-${{ github.run_number }}-${{ github.sha }}
          path: |
            D:\services\content-processing\prod\auth\shared\logs\*
@@ -144,4 +144,3 @@ jobs:
            D:\services\content-processing\prod\text2image\winsw\Text2Image-Prod.xml
          if-no-files-found: warn
          retention-days: 14
-
