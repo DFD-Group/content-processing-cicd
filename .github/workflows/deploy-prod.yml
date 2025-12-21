@@ -132,7 +132,7 @@ jobs:
           function Wait-Health($Url, $Name) {
             for ($i=1; $i -le 20; $i++) {
               try {
-                $r = curl.exe -sS $Url
+                $r = curl.exe -fsS --max-time 5 $Url
                 Write-Host "$Name health response: $r"
                 return
               } catch {
