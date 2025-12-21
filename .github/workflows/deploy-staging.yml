@@ -163,7 +163,7 @@ jobs:
             # Retry up to ~60 seconds total
             for ($i=1; $i -le 20; $i++) {
               try {
-		$r = curl.exe -fsS --max-time 5 $Url
+              	$r = curl.exe -fsS --max-time 5 $Url
                 Write-Host "$Name health response: $r"
                 return
               } catch {
@@ -195,4 +195,3 @@ jobs:
         uses: ./.github/actions/failure-diagnostics
         with:
           default_env_root: D:\services\content-processing\staging
-
