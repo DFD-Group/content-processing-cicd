@@ -9,7 +9,7 @@ runs:
   using: composite
   steps:
     - name: Collect failure diagnostics bundle
-      shell: pwsh
+      shell: powershell
       run: |
         # Create a timestamped bundle folder in the job workspace
         $ts = Get-Date -Format "yyyyMMdd-HHmmss"
