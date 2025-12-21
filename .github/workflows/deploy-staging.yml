@@ -157,7 +157,7 @@ jobs:
       # -----------------------
       # Health gates
       # -----------------------
-      - name: Health gate (8080/8081/8082)
+      - name: Health gate (9080/9081/9082)
         run: |
           function Wait-Health($Url, $Name) {
             # Retry up to ~60 seconds total
@@ -173,9 +173,9 @@ jobs:
             throw "$Name health check failed: $Url"
           }
 
-          Wait-Health "http://localhost:8080/health" "AuthService"
-          Wait-Health "http://localhost:8081/health" "PdfRendererService"
-          Wait-Health "http://localhost:8082/health" "Text2Image"
+          Wait-Health "http://localhost:9080/health" "AuthService"
+          Wait-Health "http://localhost:9081/health" "PdfRendererService"
+          Wait-Health "http://localhost:9082/health" "Text2Image"
       - name: Collect diagnostics (staging)
         if: failure()
         uses: actions/upload-artifact@v4
