@@ -1,0 +1,105 @@
+name: Failure diagnostics bundle
+description: Collect and upload a failure diagnostics bundle for deploy jobs
+inputs:
+  default_env_root:
+    description: Fallback ENV_ROOT if env.ENV_ROOT is empty
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Collect failure diagnostics bundle
+      shell: pwsh
+      run: |
+        # Create a timestamped bundle folder in the job workspace
+        $ts = Get-Date -Format "yyyyMMdd-HHmmss"
+        $bundleRoot = Join-Path $PWD ("_diag_" + $ts)
+        New-Item -ItemType Directory -Force -Path $bundleRoot | Out-Null
+
+        # Use ENV_ROOT if present (deploy workflows set it), otherwise fall back to provided default
+        $envRoot = "${{ env.ENV_ROOT }}"
+        if ([string]::IsNullOrWhiteSpace($envRoot)) {
+          $envRoot = "${{ inputs.default_env_root }}"
+        }
+
+        # Helper: copy top N most recent files from a folder
+        function Copy-RecentFiles([string]$src, [string]$dst, [int]$top = 20) {
+          if (!(Test-Path $src)) {
+            Write-Host "Missing folder: $src"
+            return
+          }
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          Get-ChildItem $src -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First $top |
+            ForEach-Object { Copy-Item $_.FullName $dst -Force }
+        }
+
+        # Helper: copy WinSW xml + wrapper logs if present
+        function Collect-Service([string]$svcName) {
+          $svcRoot = Join-Path $envRoot $svcName
+          $outRoot = Join-Path $bundleRoot $svcName
+          New-Item -ItemType Directory -Force -Path $outRoot | Out-Null
+
+          # Copy WinSW config
+          $winswDir = Join-Path $svcRoot "winsw"
+          if (Test-Path $winswDir) {
+            New-Item -ItemType Directory -Force -Path (Join-Path $outRoot "winsw") | Out-Null
+            Copy-Item (Join-Path $winswDir "*.xml") (Join-Path $outRoot "winsw") -Force -ErrorAction SilentlyContinue
+
+            # WinSW wrapper logs often live in the logpath, not winsw folder;
+            # still copy any *.log in winsw folder if present.
+            Copy-RecentFiles $winswDir (Join-Path $outRoot "winsw") 10
+          }
+
+          # Copy shared logs (most recent 20 files)
+          $logsDir = Join-Path $svcRoot "shared\logs"
+          Copy-RecentFiles $logsDir (Join-Path $outRoot "shared-logs") 20
+
+          # Capture current junction target + release inventory
+          $current = Join-Path $svcRoot "current"
+          $releases = Join-Path $svcRoot "releases"
+
+          $meta = Join-Path $outRoot "meta.txt"
+          "Service: $svcName" | Out-File $meta -Encoding utf8
+          "EnvRoot:  $envRoot" | Out-File $meta -Append -Encoding utf8
+          "Current:  $current" | Out-File $meta -Append -Encoding utf8
+
+          if (Test-Path $current) {
+            cmd.exe /c "dir `"$current`"" | Out-File $meta -Append -Encoding utf8
+          } else {
+            "Current junction not found." | Out-File $meta -Append -Encoding utf8
+          }
+
+          if (Test-Path $releases) {
+            "Releases:" | Out-File $meta -Append -Encoding utf8
+            Get-ChildItem $releases -Directory -ErrorAction SilentlyContinue |
+              Sort-Object Name -Descending |
+              Select-Object -First 15 Name, LastWriteTime |
+              Format-Table -AutoSize | Out-String | Out-File $meta -Append -Encoding utf8
+          }
+        }
+
+        # Collect for all services
+        Collect-Service "auth"
+        Collect-Service "pdf-renderer"
+        Collect-Service "text2image"
+
+        # Also capture runner-side context for debugging
+        "Git SHA: ${{ github.sha }}" | Out-File (Join-Path $bundleRoot "run.txt") -Encoding utf8
+        "Run ID:  ${{ github.run_id }}" | Out-File (Join-Path $bundleRoot "run.txt") -Append -Encoding utf8
+
+        # Zip the bundle for upload
+        $zipPath = Join-Path $PWD ("failure-diagnostics-" + $ts + ".zip")
+        Compress-Archive -Path ($bundleRoot + "\*") -DestinationPath $zipPath -Force
+
+        # Expose for upload-artifact step
+        "DIAG_ZIP=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+    - name: Upload failure diagnostics
+      uses: actions/upload-artifact@v4
+      with:
+        name: failure-diagnostics-${{ github.workflow }}-${{ github.run_number }}
+        path: ${{ env.DIAG_ZIP }}
+        if-no-files-found: error
+        retention-days: 14

@@ -22,13 +22,29 @@ jobs:
 
       - name: Setup .NET (pinned by global.json)
         uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}\dotnet
+          DOTNET_MULTILEVEL_LOOKUP: 0
         with:
           global-json-file: global.json
 
-      - name: Setup Python (pinned by .python-version)
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
+     # ---- Python: do NOT install; verify preinstalled ----
+      - name: Python sanity check (use preinstalled)
+        if: ${{ inputs.verify_python }}
+        run: |
+          whoami
+          python --version
+          where.exe python
+
+      - name: Verify Python matches .python-version
+        if: ${{ inputs.verify_python }}
+        run: |
+          $expected = (Get-Content ${{ inputs.python_version_file }} -Raw).Trim()
+          $actual = (python -c "import platform; print(platform.python_version())").Trim()
+          Write-Host "Expected: $expected"
+          Write-Host "Actual:   $actual"
+          if ($expected -ne $actual) { throw "Python version mismatch. Expected $expected, got $actual" }
+
 
       - name: Compute release version + environment root
         run: |
@@ -174,3 +190,9 @@ jobs:
             D:\services\content-processing\staging\text2image\winsw\Text2Image-Staging.xml
           if-no-files-found: warn
           retention-days: 14
+      - name: Failure diagnostics
+        if: failure()
+        uses: ./.github/actions/failure-diagnostics
+        with:
+          default_env_root: D:\services\content-processing\staging
+
