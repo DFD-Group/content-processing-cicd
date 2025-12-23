@@ -37,12 +37,15 @@ jobs:
           where.exe python
 
       - name: Verify Python matches .python-version
+        env:
+        PYTHON_VERSION_FILE: .python-version
         run: |
-          $expected = (Get-Content ${{ inputs.python_version_file }} -Raw).Trim()
+          $expected = (Get-Content $env:PYTHON_VERSION_FILE -Raw).Trim()
           $actual = (python -c "import platform; print(platform.python_version())").Trim()
           Write-Host "Expected: $expected"
           Write-Host "Actual:   $actual"
           if ($expected -ne $actual) { throw "Python version mismatch. Expected $expected, got $actual" }
+
 
       - name: Compute release version + environment root
         run: |
