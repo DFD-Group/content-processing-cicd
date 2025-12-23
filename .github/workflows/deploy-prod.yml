@@ -28,7 +28,7 @@ jobs:
         with:
           global-json-file: global.json
 
-     # ---- Python: do NOT install; verify preinstalled ----
+      # ---- Python: do NOT install; verify preinstalled ----
       - name: Python sanity check (use preinstalled)
         if: ${{ inputs.verify_python }}
         run: |
@@ -37,7 +37,6 @@ jobs:
           where.exe python
 
       - name: Verify Python matches .python-version
-        if: ${{ inputs.verify_python }}
         run: |
           $expected = (Get-Content ${{ inputs.python_version_file }} -Raw).Trim()
           $actual = (python -c "import platform; print(platform.python_version())").Trim()
@@ -48,9 +47,14 @@ jobs:
       - name: Compute release version + environment root
         run: |
           $ShortSha = "${{ github.sha }}".Substring(0,7)
-          $Version  = "0.0.1+$ShortSha"
-          "REL_VERSION=$Version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          
+          # Example: auth service version file
+          $Version = (Get-Content "services/auth/VERSION" -Raw).Trim()
+
+          "REL_VERSION=$Version"           | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "REL_COMMIT_SHORT=$ShortSha"     | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "ENV_ROOT=D:\services\content-processing\prod" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
 
       - name: Publish AuthService (Release)
         run: |
