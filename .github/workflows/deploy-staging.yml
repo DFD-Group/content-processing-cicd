@@ -63,13 +63,13 @@ jobs:
         run: |
           dotnet restore ".\services\auth\AuthService\AuthService.csproj"
           dotnet build   ".\services\auth\AuthService\AuthService.csproj" -c Release --no-restore
-          dotnet publish ".\services\auth\AuthService\AuthService.csproj" -c Release --no-build -o ".\_out\auth\app"
+          dotnet publish ".\services\auth\AuthService\AuthService.csproj" -c Release --no-build -r win-x64 --self-contained true -o ".\_out\auth\app"
 
       - name: Publish PdfRendererService (Release)
         run: |
           dotnet restore ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj"
           dotnet build   ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-restore
-          dotnet publish ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
+          dotnet publish ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-build -r win-x64 --self-contained true -o ".\_out\pdf-renderer\app"
 
       - name: Stage text2image source
         run: |
