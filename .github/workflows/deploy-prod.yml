@@ -53,7 +53,7 @@ jobs:
           # Example: auth service version file
           $Version = (Get-Content "services/auth/VERSION" -Raw).Trim()
 
-          "REL_VERSION=$Version"           | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "REL_VERSION=$Version+$ShortSha"           | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "REL_COMMIT_SHORT=$ShortSha"     | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "ENV_ROOT=D:\services\content-processing\prod" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
