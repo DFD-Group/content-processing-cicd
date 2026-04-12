@@ -23,12 +23,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable git long paths
-        run: |
-          # Helps avoid Windows path length issues during checkout/build
-          git config core.longpaths true
-          git config --get core.longpaths 
-
       - name: Set build variables
         id: vars
         run: |
@@ -53,17 +47,17 @@ jobs:
       - name: Restore (AuthService)
         run: |
           # Restore NuGet dependencies for AuthService
-          dotnet restore ".\services\auth\AuthService\AuthService.csproj"
+          dotnet restore ".\backend\auth\AuthService\AuthService.csproj"
 
       - name: Build (AuthService) - Release
         run: |
           # Build AuthService in Release mode (no restore, because it was already restored)
-          dotnet build ".\services\auth\AuthService\AuthService.csproj" -c Release --no-restore
+          dotnet build ".\backend\auth\AuthService\AuthService.csproj" -c Release --no-restore
 
       - name: Publish (AuthService) - Release
         run: |
           # Publish produces the deployable output folder (exe + deps)
-          dotnet publish ".\services\auth\AuthService\AuthService.csproj" -c Release --no-build -o ".\_out\auth\app"
+          dotnet publish ".\backend\auth\AuthService\AuthService.csproj" -c Release --no-build -o ".\_out\auth\app"
 
       # -----------------------
       # PdfRendererService (.NET)
@@ -71,28 +65,21 @@ jobs:
       - name: Restore (PdfRendererService)
         run: |
           # Restore NuGet dependencies for PdfRendererService
-          dotnet restore ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj"
+          dotnet restore ".\backend\pdf-renderer\PdfRendererService\PdfRendererService.csproj"
 
       - name: Build (PdfRendererService) - Release
         run: |
           # Build PdfRendererService in Release mode
-          dotnet build ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-restore
+          dotnet build ".\backend\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-restore
 
       - name: Publish (PdfRendererService) - Release
         run: |
           # Publish produces the deployable output folder (exe + deps)
-          dotnet publish ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
+          dotnet publish ".\backend\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release --no-build -o ".\_out\pdf-renderer\app"
 
       # -----------------------
       # text2image (Python)
       # -----------------------
-      - name: Python sanity check
-        shell: powershell
-        run: |
-          whoami
-          python --version
-          where.exe python
-
       - name: Verify Python matches .python-version
         shell: powershell
         run: |
@@ -103,19 +90,13 @@ jobs:
       - name: Validate text2image structure
         run: |
           # Fail fast if expected files are missing
-          if (!(Test-Path ".\services\text2image\requirements.txt")) { throw "Missing services/text2image/requirements.txt" }
-          if (!(Test-Path ".\services\text2image\app\main.py")) { Write-Host "Note: app/main.py not found; verify your uvicorn entrypoint." }
-
-      - name: Dependency sanity check (text2image)
-        run: |
-          # Basic pip sanity check (does not create a deploy venv; deployment will do that per-release)
-          python -m pip install --upgrade pip
-          pip install -r ".\services\text2image\requirements.txt"
+          if (!(Test-Path ".\backend\text2image\requirements.txt")) { throw "Missing backend/text2image/requirements.txt" }
+          if (!(Test-Path ".\backend\text2image\app\main.py")) { Write-Host "Note: app/main.py not found; verify your uvicorn entrypoint." }
 
       - name: Package source (text2image)
         run: |
           # Copy python service source + requirements into artifact output
-          Copy-Item ".\services\text2image\*" ".\_out\text2image" -Recurse -Force
+          Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
 
       # -----------------------
       # Create ZIPs (Artifacts)

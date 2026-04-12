@@ -28,14 +28,6 @@ jobs:
         with:
           global-json-file: global.json
 
-      # ---- Python: do NOT install; verify preinstalled ----
-      - name: Python sanity check (use preinstalled)
-        if: ${{ inputs.verify_python }}
-        run: |
-          whoami
-          python --version
-          where.exe python
-
       - name: Verify Python matches .python-version
         env:
           PYTHON_VERSION_FILE: .python-version
@@ -50,8 +42,7 @@ jobs:
         run: |
           $ShortSha = "${{ github.sha }}".Substring(0,7)
           
-          # Example: auth service version file
-          $Version = (Get-Content "services/auth/VERSION" -Raw).Trim()
+          $Version = (Get-Content "backend/auth/VERSION" -Raw).Trim()
 
           "REL_VERSION=$Version+$ShortSha"           | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "REL_COMMIT_SHORT=$ShortSha"     | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -60,16 +51,22 @@ jobs:
 
       - name: Publish AuthService (Release)
         run: |
-          dotnet publish ".\services\auth\AuthService\AuthService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\auth\app"
+          dotnet publish ".\backend\auth\AuthService\AuthService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\auth\app"
 
       - name: Publish PdfRendererService (Release)
         run: |
-          dotnet publish ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\pdf-renderer\app"
+          dotnet publish ".\backend\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\pdf-renderer\app"
 
       - name: Stage text2image source
         run: |
           New-Item -ItemType Directory -Force -Path ".\_out\text2image" | Out-Null
-          Copy-Item ".\services\text2image\*" ".\_out\text2image" -Recurse -Force
+          Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
+
+      - name: Run Flyway migrations
+        run: |
+          # FLYWAY_MIGRATOR_PASSWORD is already set as a machine-level env var on the runner
+          flyway -environment=prod migrate
+        working-directory: backend/shared
 
       - name: Deploy services (atomic current switch)
         run: |

@@ -28,32 +28,13 @@ jobs:
         with:
           global-json-file: global.json
 
-     # ---- Python: do NOT install; verify preinstalled ----
-      - name: Python sanity check (use preinstalled)
-        if: ${{ inputs.verify_python }}
-        run: |
-          whoami
-          python --version
-          where.exe python
-
-      - name: Verify Python matches .python-version
-        if: ${{ inputs.verify_python }}
-        run: |
-          $expected = (Get-Content ${{ inputs.python_version_file }} -Raw).Trim()
-          $actual = (python -c "import platform; print(platform.python_version())").Trim()
-          Write-Host "Expected: $expected"
-          Write-Host "Actual:   $actual"
-          if ($expected -ne $actual) { throw "Python version mismatch. Expected $expected, got $actual" }
-
-
       - name: Compute release version + environment root
         run: |
-          # Release folder version format: 0.0.1+<shortsha>
           $ShortSha = "${{ github.sha }}".Substring(0,7)
-          $Version  = "0.0.1+$ShortSha"
-          "REL_VERSION=$Version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $Version = (Get-Content "backend/auth/VERSION" -Raw).Trim()
 
-          # Staging root folder on server
+          "REL_VERSION=$Version+$ShortSha"           | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "REL_COMMIT_SHORT=$ShortSha"     | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "ENV_ROOT=D:\services\content-processing\staging" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       # -----------------------
@@ -61,17 +42,22 @@ jobs:
       # -----------------------
       - name: Publish AuthService (Release)
         run: |
-          dotnet publish ".\services\auth\AuthService\AuthService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\auth\app"
+          dotnet publish ".\backend\auth\AuthService\AuthService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\auth\app"
 
       - name: Publish PdfRendererService (Release)
         run: |
-          dotnet publish ".\services\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\pdf-renderer\app"
+          dotnet publish ".\backend\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\pdf-renderer\app"
 
       - name: Stage text2image source
         run: |
           # Package python service source; venv will be created inside the release folder
           New-Item -ItemType Directory -Force -Path ".\_out\text2image" | Out-Null
-          Copy-Item ".\services\text2image\*" ".\_out\text2image" -Recurse -Force
+          Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
+
+      - name: Run Flyway migrations
+        run: |
+          flyway -environment=staging migrate
+        working-directory: backend/shared
 
       # -----------------------
       # Deploy: stop -> copy -> junction switch -> start

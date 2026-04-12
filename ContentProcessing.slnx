@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/backend/" />
+  <Folder Name="/backend/auth/">
+    <Project Path="backend/auth/AuthService/AuthService.csproj" />
+  </Folder>
+  <Folder Name="/backend/pdf-renderer/">
+    <Project Path="backend/pdf-renderer/PdfRendererService/PdfRendererService.csproj" />
+  </Folder>
+  <Folder Name="/backend/shared/" />
+  <Folder Name="/backend/shared/persistence/">
+    <Project Path="backend/shared/persistence/ContentProcessing.Persistence.csproj" />
+  </Folder>
+</Solution>

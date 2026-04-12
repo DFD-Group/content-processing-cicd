@@ -19,3 +19,9 @@ venv/
 
 # OS
 Thumbs.db
+
+# Plans (internal working docs)
+plans/
+
+# .NET environment-specific settings (may contain local secrets)
+appsettings.Development.json
