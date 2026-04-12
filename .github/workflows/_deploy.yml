@@ -1,0 +1,153 @@
+name: _deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      env_root:
+        required: true
+        type: string
+      flyway_env:
+        required: true
+        type: string
+      winsw_suffix:
+        required: true
+        type: string
+      health_port_base:
+        required: true
+        type: number
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, windows]
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        shell: powershell
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Python matches .python-version
+        run: |
+          $expected = (Get-Content .python-version -Raw).Trim()
+          $actual = (python -c "import platform; print(platform.python_version())").Trim()
+          Write-Host "Expected: $expected"
+          Write-Host "Actual:   $actual"
+          if ($expected -ne $actual) { throw "Python version mismatch. Expected $expected, got $actual" }
+
+      - name: Compute release version + environment root
+        run: |
+          $ShortSha = "${{ github.sha }}".Substring(0,7)
+          $Version = (Get-Content "backend/auth/VERSION" -Raw).Trim()
+
+          "REL_VERSION=$Version+$ShortSha"    | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "REL_COMMIT_SHORT=$ShortSha"        | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "ENV_ROOT=${{ inputs.env_root }}"   | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Publish .NET services (Release)
+        run: |
+          dotnet publish ".\backend\auth\AuthService\AuthService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\auth\app"
+          dotnet publish ".\backend\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\pdf-renderer\app"
+
+      - name: Stage text2image source
+        run: |
+          New-Item -ItemType Directory -Force -Path ".\_out\text2image" | Out-Null
+          Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
+
+      - name: Run Flyway migrations
+        run: |
+          flyway -environment=${{ inputs.flyway_env }} migrate
+        working-directory: backend/shared
+
+      - name: Deploy services (atomic current switch)
+        run: |
+          $EnvRoot = "${{ inputs.env_root }}"
+          $Version = "${{ env.REL_VERSION }}"
+          $Suffix  = "${{ inputs.winsw_suffix }}"
+
+          function Ensure-Dirs($ServiceName) {
+            $SvcRoot = Join-Path $EnvRoot $ServiceName
+            New-Item -ItemType Directory -Force -Path `
+              (Join-Path $SvcRoot "releases"),
+              (Join-Path $SvcRoot "shared\config"),
+              (Join-Path $SvcRoot "shared\logs"),
+              (Join-Path $SvcRoot "shared\data"),
+              (Join-Path $SvcRoot "winsw") | Out-Null
+            return $SvcRoot
+          }
+
+          function Switch-CurrentJunction($SvcRoot, $ReleaseDir) {
+            $Current = Join-Path $SvcRoot "current"
+            if (Test-Path $Current) { cmd.exe /c "rmdir `"$Current`"" }
+            cmd.exe /c "mklink /J `"$Current`" `"$ReleaseDir`""
+          }
+
+          function Deploy-Service($ServiceName, $SourcePath, $WinswExeName, $NeedsVenv) {
+            $SvcRoot    = Ensure-Dirs $ServiceName
+            $ReleaseDir = Join-Path $SvcRoot "releases\$Version"
+            $AppDir     = Join-Path $ReleaseDir "app"
+            $WinswExe   = Join-Path $EnvRoot "$ServiceName\winsw\$WinswExeName-$Suffix.exe"
+
+            & $WinswExe stop
+
+            New-Item -ItemType Directory -Force -Path $AppDir | Out-Null
+            Copy-Item "$SourcePath\*" $AppDir -Recurse -Force
+
+            if ($NeedsVenv) {
+              $VenvDir = Join-Path $ReleaseDir "venv"
+              python -m venv $VenvDir
+              & (Join-Path $VenvDir "Scripts\python.exe") -m pip install --upgrade pip
+              & (Join-Path $VenvDir "Scripts\pip.exe") install -r (Join-Path $AppDir "requirements.txt")
+            }
+
+            Switch-CurrentJunction $SvcRoot $ReleaseDir
+            & $WinswExe start
+          }
+
+          Deploy-Service -ServiceName "auth" `
+            -SourcePath ".\_out\auth\app" `
+            -WinswExeName "AuthService" `
+            -NeedsVenv:$false
+
+          Deploy-Service -ServiceName "pdf-renderer" `
+            -SourcePath ".\_out\pdf-renderer\app" `
+            -WinswExeName "PdfRendererService" `
+            -NeedsVenv:$false
+
+          Deploy-Service -ServiceName "text2image" `
+            -SourcePath ".\_out\text2image" `
+            -WinswExeName "Text2Image" `
+            -NeedsVenv:$true
+
+      - name: Health gate
+        run: |
+          $base = [int]${{ inputs.health_port_base }}
+
+          function Wait-Health($Url, $Name) {
+            for ($i=1; $i -le 20; $i++) {
+              try {
+                $r = curl.exe -fsS --max-time 5 $Url
+                Write-Host "$Name health response: $r"
+                return
+              } catch {
+                Start-Sleep -Seconds 3
+              }
+            }
+            throw "$Name health check failed: $Url"
+          }
+
+          Wait-Health "http://localhost:$base/health"       "AuthService"
+          Wait-Health "http://localhost:$($base+1)/health"  "PdfRendererService"
+          Wait-Health "http://localhost:$($base+2)/health"  "Text2Image"
+
+      - name: Failure diagnostics
+        if: failure()
+        uses: ./.github/actions/failure-diagnostics
+        with:
+          default_env_root: ${{ inputs.env_root }}
