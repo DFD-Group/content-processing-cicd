@@ -1,30 +1,27 @@
-# What you need:
-    name: Deploy - Dev (Flyway only)
+name: Deploy - Dev (Flyway only)
 
-    on:
-      workflow_run:
-        workflows: ["CI (develop) - build & package"]
-        types: [completed]
-    
-    concurrency:
-      group: deploy-dev
-      cancel-in-progress: false
-    
-    jobs:
-      migrate:
-        name: Flyway migrate (dev)
-        runs-on: [self-hosted, windows]
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
-        defaults:
-          run:
-            shell: powershell
-    
-        steps:
-          # Step 1: Checkout (Flyway needs the .sql files and flyway.toml)
-          - uses: actions/checkout@v4
-    
-          # Step 2: Run Flyway against dev environment
-          - name: Run Flyway migrations (dev)
-            run: |
-              flyway -environment=dev migrate
-            working-directory: backend/shared
+on:
+  workflow_run:
+    workflows: ["CI (develop) - build & package"]
+    types: [completed]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Flyway migrate (dev)
+    runs-on: [self-hosted, windows]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Flyway migrations (dev)
+        run: |
+          flyway -environment=dev migrate
+        working-directory: backend/shared

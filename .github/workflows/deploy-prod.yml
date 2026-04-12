@@ -148,16 +148,16 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-         name: deploy-diagnostics-prod-${{ github.run_number }}-${{ github.sha }}
-         path: |
-           D:\services\content-processing\prod\auth\shared\logs\*
-           D:\services\content-processing\prod\pdf-renderer\shared\logs\*
-           D:\services\content-processing\prod\text2image\shared\logs\*
-           D:\services\content-processing\prod\auth\winsw\AuthService-Prod.xml
-           D:\services\content-processing\prod\pdf-renderer\winsw\PdfRendererService-Prod.xml
-           D:\services\content-processing\prod\text2image\winsw\Text2Image-Prod.xml
-         if-no-files-found: warn
-         retention-days: 14
+          name: deploy-diagnostics-prod-${{ github.run_number }}-${{ github.sha }}
+          path: |
+            D:\services\content-processing\prod\auth\shared\logs\*
+            D:\services\content-processing\prod\pdf-renderer\shared\logs\*
+            D:\services\content-processing\prod\text2image\shared\logs\*
+            D:\services\content-processing\prod\auth\winsw\AuthService-Prod.xml
+            D:\services\content-processing\prod\pdf-renderer\winsw\PdfRendererService-Prod.xml
+            D:\services\content-processing\prod\text2image\winsw\Text2Image-Prod.xml
+          if-no-files-found: warn
+          retention-days: 14
       - name: Failure diagnostics
         if: failure()
         uses: ./.github/actions/failure-diagnostics
