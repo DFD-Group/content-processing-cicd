@@ -4,7 +4,7 @@ locations = ["filesystem:flyway-sql"]
 [environments.dev]
 url = "jdbc:postgresql://127.0.0.1:5432/dev_content_processing"
 user = "flyway_migrator"
-password = "env.FLYWAY_MIGRATOR_PASSWORD"
+password = "${env.FLYWAY_MIGRATOR_PASSWORD}"
 
 [environments.dev.flyway]
 placeholders.app_role = "dev_svc_content_process"
@@ -12,7 +12,7 @@ placeholders.app_role = "dev_svc_content_process"
 [environments.staging]
 url = "jdbc:postgresql://127.0.0.1:5432/staging_content_processing"
 user = "flyway_migrator"
-password = "env.FLYWAY_MIGRATOR_PASSWORD"
+password = "${env.FLYWAY_MIGRATOR_PASSWORD}"
 
 [environments.staging.flyway]
 placeholders.app_role = "staging_svc_content_process"
@@ -20,7 +20,7 @@ placeholders.app_role = "staging_svc_content_process"
 [environments.prod]
 url = "jdbc:postgresql://127.0.0.1:5432/content_processing"
 user = "flyway_migrator"
-password = "env.FLYWAY_MIGRATOR_PASSWORD"
+password = "${env.FLYWAY_MIGRATOR_PASSWORD}"
 
 [environments.prod.flyway]
 placeholders.app_role = "svc_content_process"
