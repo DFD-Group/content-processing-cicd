@@ -25,3 +25,6 @@ plans/
 
 # .NET environment-specific settings (may contain local secrets)
 appsettings.Development.json
+
+# Cursor
+.cursor/

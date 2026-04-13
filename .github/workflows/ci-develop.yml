@@ -28,7 +28,7 @@ jobs:
         run: |
           # Short SHA used in artifact names
           $ShortSha = "${{ github.sha }}".Substring(0,7)
-          "SHORT_SHA=$ShortSha" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "SHORT_SHA=$ShortSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
           # Standard output folders inside the job workspace
           New-Item -ItemType Directory -Force -Path ".\_out\auth", ".\_out\pdf-renderer", ".\_out\text2image", ".\_zips" | Out-Null
@@ -104,15 +104,15 @@ jobs:
       - name: Create ZIP artifacts
         run: |
           # Zip each deployable unit separately
-          Compress-Archive -Path ".\_out\auth\*"        -DestinationPath ".\_zips\AuthService-${{ env.SHORT_SHA }}.zip" -Force
-          Compress-Archive -Path ".\_out\pdf-renderer\*" -DestinationPath ".\_zips\PdfRendererService-${{ env.SHORT_SHA }}.zip" -Force
-          Compress-Archive -Path ".\_out\text2image\*"   -DestinationPath ".\_zips\text2image-${{ env.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\auth\*"        -DestinationPath ".\_zips\AuthService-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\pdf-renderer\*" -DestinationPath ".\_zips\PdfRendererService-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\text2image\*"   -DestinationPath ".\_zips\text2image-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           # One workflow run publishes three ZIPs
-          name: develop-build-${{ github.run_number }}-${{ env.SHORT_SHA }}
+          name: develop-build-${{ github.run_number }}-${{ steps.vars.outputs.SHORT_SHA }}
           path: .\_zips\*.zip
           if-no-files-found: error
           retention-days: 14

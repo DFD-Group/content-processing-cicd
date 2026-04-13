@@ -42,13 +42,13 @@ jobs:
           if ($expected -ne $actual) { throw "Python version mismatch. Expected $expected, got $actual" }
 
       - name: Compute release version + environment root
+        id: version
         run: |
           $ShortSha = "${{ github.sha }}".Substring(0,7)
           $Version = (Get-Content "backend/auth/VERSION" -Raw).Trim()
 
           "REL_VERSION=$Version+$ShortSha"    | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "REL_COMMIT_SHORT=$ShortSha"        | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "ENV_ROOT=${{ inputs.env_root }}"   | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Publish .NET services (Release)
         run: |
@@ -68,7 +68,7 @@ jobs:
       - name: Deploy services (atomic current switch)
         run: |
           $EnvRoot = "${{ inputs.env_root }}"
-          $Version = "${{ env.REL_VERSION }}"
+          $Version = "${{ steps.version.outputs.REL_VERSION }}"
           $Suffix  = "${{ inputs.winsw_suffix }}"
 
           function Ensure-Dirs($ServiceName) {
