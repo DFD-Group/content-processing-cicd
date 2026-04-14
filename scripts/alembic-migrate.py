@@ -10,7 +10,7 @@ Options:
 
 Prerequisites:
     - alembic importable (activate your venv)
-    - CONTENT_PROCESSING_CONNECTION_STRING env var set (needed for autogenerate)
+    - DATABASE_URL env var set (needed for autogenerate)
 """
 
 import os
@@ -88,11 +88,11 @@ def main() -> None:
     migration_msg = args[0]
 
     # ── Pre-flight checks ────────────────────────────────────────────
-    if not os.environ.get("CONTENT_PROCESSING_CONNECTION_STRING"):
+    if not os.environ.get("DATABASE_URL"):
         sys.exit(
-            "Error: CONTENT_PROCESSING_CONNECTION_STRING is not set.\n"
+            "Error: DATABASE_URL is not set.\n"
             "Export it first, e.g.:\n"
-            "  export CONTENT_PROCESSING_CONNECTION_STRING='postgresql+psycopg://user:pass@localhost:5433/db'"
+            "  export DATABASE_URL='postgresql+psycopg://user:pass@localhost:5433/db'"
         )
 
     FLYWAY_DIR.mkdir(parents=True, exist_ok=True)
