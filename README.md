@@ -30,8 +30,11 @@ backend/
   actions/failure-diagnostics/      # Composite action for deploy failure logs
 docs/                               # Operational documentation
 plans/                              # Completed and in-progress planning docs
-ef-migrate.ps1                      # Create EF migration + generate Flyway SQL
-ef-remove.ps1                       # Remove last EF migration + delete matching SQL
+scripts/
+  ef-migrate.py                     # Create EF migration + generate Flyway SQL
+  ef-remove.py                      # Remove last EF migration + delete matching SQL
+  alembic-migrate.py                # Create Alembic migration + generate Flyway SQL
+  alembic-remove.py                 # Remove last Alembic migration + delete matching SQL
 ContentProcessing.slnx              # .NET solution file
 ```
 
@@ -52,9 +55,10 @@ A PostgreSQL enum `app.pdf_to_images_status` tracks job state (`Pending`, `Proce
 
 Migrations are **authored** with EF Core and **applied** with Flyway:
 
-1. `ef-migrate.ps1` — runs `dotnet ef migrations add`, then generates a numbered Flyway SQL file under `backend/shared/flyway-sql/`
-2. CI/CD pipelines run `flyway migrate` against the target environment (dev / staging / prod)
-3. `ef-remove.ps1` — reverses the last migration and deletes the corresponding SQL file
+1. `python scripts/ef-migrate.py` — runs `dotnet ef migrations add`, then generates a numbered Flyway SQL file under `backend/shared/flyway-sql/`
+2. `python scripts/alembic-migrate.py` — runs `alembic revision --autogenerate`, then generates a numbered Flyway SQL file (use `--sql-only` to skip revision creation)
+3. CI/CD pipelines run `flyway migrate` against the target environment (dev / staging / prod)
+4. `python scripts/ef-remove.py` / `python scripts/alembic-remove.py` — reverse the last migration and delete the corresponding SQL file
 
 ## CI/CD
 
