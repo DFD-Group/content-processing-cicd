@@ -115,6 +115,6 @@ Key points:
 ## Documentation
 
 - [PostgreSQL schema & operations](docs/postgresql.md) — self-hosted Postgres, API keys, network access, migrations, backups
-- [SSH Tunnel Setup Guide](plans/completed/ssh-tunnel-postgresql-windows.md) — step-by-step SSH tunnel to PostgreSQL over VPN
-- [EF Core + Flyway migration plan](plans/completed/ef-core-persistence-and-alembic.md) — persistence design decisions
-- [Flyway CI/CD integration](plans/completed/flyway-migrations-ci-cd.md) — how Flyway fits into the pipelines
+- [SSH Tunnel Setup Guide](plans/completed/05-ssh-tunnel-postgresql-windows.md) — step-by-step SSH tunnel to PostgreSQL over VPN
+- [EF Core + Flyway migration plan](plans/completed/02-ef-core-persistence-and-alembic.md) — persistence design decisions
+- [Flyway CI/CD integration](plans/completed/01-flyway-migrations-ci-cd.md) — how Flyway fits into the pipelines
