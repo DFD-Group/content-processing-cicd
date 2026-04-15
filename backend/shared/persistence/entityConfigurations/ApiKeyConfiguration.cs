@@ -10,6 +10,9 @@ public class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
     {
         builder.ToTable("api_keys", schema: "auth");
 
+        builder.Property(e => e.ApiKeyId)
+            .HasDefaultValueSql("gen_random_uuid()");
+
         builder.Property(e => e.SecretHash)
             .HasMaxLength(64)
             .IsFixedLength()
