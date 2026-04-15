@@ -59,7 +59,7 @@ Optional: separate roles per service (`auth` vs `worker`) if you want tighter bl
 4. **Rotation**: add row for new key, migrate clients, set `revoked_at` on old row (or soft-delete).
 5. **Indexing**: index `key_id`; do **not** index raw secret or raw hash if you use random lookups — you typically look up by `key_id` from a prefixed key (`key_id.secret`) or by hash only if the key embeds no id (less common).
 
-**Prefix format (common):** e.g. `cp_live_` + `key_id` + `.` + `secret_part` so Auth can route to the right row without scanning.
+**Prefix format (common):** e.g. `cp_` + `key_id` + `_` + `secret_part` so Auth can route to the right row without scanning.
 
 **What not to do:** store plaintext secrets in Postgres; log full keys in application logs.
 
