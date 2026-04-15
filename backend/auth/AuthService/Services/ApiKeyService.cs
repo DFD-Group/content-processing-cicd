@@ -39,7 +39,7 @@ public class ApiKeyService : IApiKeyService
             }
         }
 
-        var secretBytes = RandomNumberGenerator.GetBytes(32);
+        var secretBytes = RandomNumberGenerator.GetBytes(24);
         var rawSecret = Convert.ToHexString(secretBytes).ToLowerInvariant();
 
         var payload = (_pepper ?? "") + rawSecret;
@@ -61,7 +61,7 @@ public class ApiKeyService : IApiKeyService
         return new CreateApiKeyResponse
         {
             ApiKeyId = entity.ApiKeyId,
-            RawKey = $"cp_live_{entity.ApiKeyId}.{rawSecret}",
+            RawKey = $"cp_{entity.ApiKeyId}_{rawSecret}",
             Name = request.Name,
             Scopes = request.Scopes,
             CreatedAt = DateTimeOffset.UtcNow,
