@@ -65,8 +65,7 @@ Optional: separate roles per service (`auth` vs `worker`) if you want tighter bl
 
 - Binaries on disk (or UNC/SMB share on Windows), **relative or absolute paths in DB**, plus metadata for integrity and workflow.
 
-- **`pdf_to_image`**: `id`, **`pdf_path`**, **`image_id`** (nullable until rendered), **`pdf_sha256`**, **`status`** (`pending` / `processing` / `complete` / `failed`), **`error_message`**, **`created_at`**, **`updated_at`**.
-- Child table **`images`** with `id`, `image_path`, **`image_sha256`**, `page_index`, etc.
+- **`pdf_to_images`** and child **`images`**: parent row (`id`, **`pdf_path`**, **`pdf_sha256`**, **`error_message`**, timestamps, linkage to first page); **`images`** rows (`id`, `image_path`, **`image_sha256`**, page index, FK to parent).
 
 **Path rules:**
 
@@ -75,24 +74,24 @@ Optional: separate roles per service (`auth` vs `worker`) if you want tighter bl
 - Normalize separators for Windows (`\` vs `/`) in one layer (application).
 - Enforce **max length** (e.g. `TEXT` is fine; validate length in app).
 
-**Concurrency:** use transactions when updating `status` and paths so partial failures do not leave inconsistent state.
+**Concurrency:** use transactions when updating paths and related metadata so partial failures do not leave inconsistent state.
 
 ```mermaid
 flowchart LR
   subgraph db [PostgreSQL]
     api_keys[api_keys table]
-    pdf_to_image[pdf_to_image table]
+    pdf_to_images[pdf_to_images table]
     images[images child table]
   end
   Auth[AuthService] --> api_keys
-  Pdf[pdf-renderer] --> pdf_to_image
-  T2I[text2image] --> pdf_to_image
+  Pdf[pdf-renderer] --> pdf_to_images
+  T2I[text2image] --> pdf_to_images
   Disk[Filesystem storage] -.-> Pdf
   Disk -.-> T2I
 ```
 
 - **AuthService**: read/write `api_keys` (or a view limited to non-sensitive columns for admins).
-- **pdf-renderer / text2image**: read/write `pdf-to-image`, `images`
+- **pdf-renderer / text2image**: read/write `pdf_to_images`, `images`
 
 ---
 

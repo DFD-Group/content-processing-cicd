@@ -4,7 +4,6 @@ using ContentProcessing.Persistence.Entities.App;
 using ContentProcessing.Persistence.Entities.Auth;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
-using EFCore.NamingConventions;
 
 public class ContentProcessingDbContext : DbContext
 {

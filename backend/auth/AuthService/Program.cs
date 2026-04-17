@@ -1,7 +1,5 @@
-using OneOf;
 using ContentProcessing.Persistence;
 using Microsoft.EntityFrameworkCore;
-using ContentProcessing.Persistence.Entities.App;
 using AuthService.Models;
 using AuthService.Services;
 
@@ -11,8 +9,7 @@ var connectionString = builder.Configuration.GetConnectionString("ContentProcess
     ?? Environment.GetEnvironmentVariable("CONTENT_PROCESSING_CONNECTION_STRING");
 
 builder.Services.AddDbContext<ContentProcessingDbContext>(options =>
-    options.UseNpgsql(connectionString,
-                      o => o.MapEnum<PdfToImagesStatus>("pdf_to_images_status", schemaName: "app"))
+    options.UseNpgsql(connectionString)
     .UseSnakeCaseNamingConvention());
 
 builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
@@ -31,6 +28,14 @@ app.MapPost("/api-keys", async (CreateApiKeyRequest request, IApiKeyService serv
         response => Results.Created($"/api-keys/{response.ApiKeyId}", response),
         error => Results.BadRequest(new { error = error.Message })
     );
+});
+
+app.MapPost("/api-keys/verify", async (VerifyApiKeyRequest request, IApiKeyService service) =>
+{
+    var result = await service.VerifyAsync(request.RawKey);
+    return result is null
+        ? Results.Unauthorized()
+        : Results.Ok(result);
 });
 
 app.MapGet("/api-keys", async (IApiKeyService service) =>
