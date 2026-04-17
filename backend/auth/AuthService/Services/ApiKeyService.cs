@@ -68,6 +68,44 @@ public class ApiKeyService : IApiKeyService
         };
     }
 
+    public async Task<ApiKeyDto?> VerifyAsync(string rawKey)
+    {
+        if (!rawKey.StartsWith("cp_"))
+            return null;
+
+        var withoutPrefix = rawKey["cp_".Length..];
+        if (withoutPrefix.Length < 36 + 1 + 1)
+            return null;
+
+        var idPart = withoutPrefix[..36];
+        var secretPart = withoutPrefix[37..];
+
+        if (!Guid.TryParse(idPart, out var id))
+            return null;
+
+        var entity = await _db.ApiKeys
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.ApiKeyId == id);
+        
+        if (entity is null || entity.RevokedAt is not null)
+            return null;
+
+        if (entity.ExpiresAt is not null && entity.ExpiresAt < DateTimeOffset.UtcNow)
+            return null;
+
+        var payload = (_pepper ?? "") + secretPart;
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
+        var secretHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+        var storedHashBytes = Encoding.UTF8.GetBytes(entity.SecretHash);
+        var computedHashBytes = Encoding.UTF8.GetBytes(secretHash);
+
+        if (CryptographicOperations.FixedTimeEquals(storedHashBytes, computedHashBytes))
+            return MapToDto(entity);
+
+        return null;
+    }
+
     public async Task<List<ApiKeyDto>> ListAsync()
     {
         return await _db.ApiKeys
