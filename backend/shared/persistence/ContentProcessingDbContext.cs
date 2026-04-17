@@ -18,7 +18,6 @@ public class ContentProcessingDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasPostgresEnum<PdfToImagesStatus>(schema: "app", name: "pdf_to_images_status");
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
     }
 

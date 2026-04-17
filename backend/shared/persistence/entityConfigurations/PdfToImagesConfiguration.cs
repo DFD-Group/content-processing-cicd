@@ -24,9 +24,6 @@ public class PdfToImagesConfiguration : IEntityTypeConfiguration<PdfToImages>
         builder.ToTable(t => t.HasCheckConstraint("CK_pdf_to_images_pdf_sha256",
             "octet_length(trim(pdf_sha256::text)) = 64 AND trim(pdf_sha256::text) ~ '^[0-9a-fA-F]{64}$'"));
 
-        builder.Property(e => e.Status)
-            .HasDefaultValue(PdfToImagesStatus.Pending);
-
         builder.Property(e => e.CreatedAt)
             .HasDefaultValueSql("now()");
 

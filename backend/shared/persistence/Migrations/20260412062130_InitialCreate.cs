@@ -1,5 +1,4 @@
 ﻿using System;
-using ContentProcessing.Persistence.Entities.App;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -70,7 +69,7 @@ namespace ContentProcessing.Persistence.Migrations
                     pdf_path = table.Column<string>(type: "text", nullable: false),
                     first_page_image_id = table.Column<Guid>(type: "uuid", nullable: true),
                     pdf_sha256 = table.Column<string>(type: "character(64)", fixedLength: true, maxLength: 64, nullable: false),
-                    status = table.Column<PdfToImagesStatus>(type: "app.pdf_to_images_status", nullable: false, defaultValue: PdfToImagesStatus.Pending),
+                    status = table.Column<string>(type: "app.pdf_to_images_status", nullable: false, defaultValue: "pending"),
                     error_message = table.Column<string>(type: "text", nullable: true),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
                     updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")

@@ -13,8 +13,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<ContentPro
 
         var optionsBuilder = new DbContextOptionsBuilder<ContentProcessingDbContext>();
         optionsBuilder
-            .UseNpgsql(connectionString,
-                        o => o.MapEnum<PdfToImagesStatus>("pdf_to_images_status", schemaName: "app"))
+            .UseNpgsql(connectionString)
             .UseSnakeCaseNamingConvention();
             
         return new ContentProcessingDbContext(optionsBuilder.Options);
