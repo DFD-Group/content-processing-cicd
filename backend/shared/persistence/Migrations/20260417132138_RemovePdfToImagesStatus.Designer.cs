@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ContentProcessing.Persistence.Migrations
 {
     [DbContext(typeof(ContentProcessingDbContext))]
-    [Migration("20260412062130_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260417132138_RemovePdfToImagesStatus")]
+    partial class RemovePdfToImagesStatus
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -23,7 +23,6 @@ namespace ContentProcessing.Persistence.Migrations
                 .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "app", "pdf_to_images_status", new[] { "pending", "processing", "completed", "failed" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("ContentProcessing.Persistence.Entities.App.Image", b =>
@@ -108,13 +107,6 @@ namespace ContentProcessing.Persistence.Migrations
                         .HasColumnName("pdf_sha256")
                         .IsFixedLength();
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("app.pdf_to_images_status")
-                        .HasDefaultValue("pending")
-                        .HasColumnName("status");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -138,7 +130,8 @@ namespace ContentProcessing.Persistence.Migrations
                     b.Property<Guid>("ApiKeyId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("api_key_id");
+                        .HasColumnName("api_key_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
