@@ -47,9 +47,9 @@ The **ContentProcessing.Persistence** library (EF Core 10 + Npgsql) defines the 
 | Schema | Tables | Purpose |
 |--------|--------|---------|
 | `auth` | `api_keys` | API key management |
-| `app` | `pdf_to_images`, `images` | PDF-to-image job tracking |
+| `app` | `pdf_to_images`, `images` | Stored PDFs, rendered pages, and related metadata |
 
-A PostgreSQL enum `app.pdf_to_images_status` tracks job state (`Pending`, `Processing`, `Completed`, `Failed`).
+PDF → JPG is documented as a **synchronous** HTTP response (image bytes in the POST). See [plans/in progress/pdf-to-jpg-sync-stream-migration.md](plans/in%20progress/pdf-to-jpg-sync-stream-migration.md).
 
 ### Migration workflow
 
@@ -90,6 +90,19 @@ Each deploy creates a new release folder, switches the `current` junction atomic
 |-------------|-------|
 | Staging | 9080 (auth), 9081 (pdf-renderer), 9082 (text2image) |
 | Production | 8080 (auth), 8081 (pdf-renderer), 8082 (text2image) |
+
+## API endpoints
+
+All services are exposed via **Caddy** reverse proxy on `api.dfd-group.com` with automatic HTTPS.
+
+| Environment | Service | URL |
+|-------------|---------|-----|
+| Staging | Auth | `https://api.dfd-group.com/staging-auth/` |
+| Staging | PDF Renderer | `https://api.dfd-group.com/staging-pdf/` |
+| Staging | Text2Image | `https://api.dfd-group.com/staging-t2i/` |
+| Production | Auth | `https://api.dfd-group.com/auth/` |
+| Production | PDF Renderer | `https://api.dfd-group.com/pdf/` |
+| Production | Text2Image | `https://api.dfd-group.com/t2i/` |
 
 ## Remote database access
 

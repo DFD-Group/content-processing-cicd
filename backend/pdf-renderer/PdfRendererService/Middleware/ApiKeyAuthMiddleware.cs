@@ -1,4 +1,4 @@
-namespace AuthService.Middleware;
+namespace PdfRendererService.Middleware;
 
 using System.Text.Json;
 
@@ -6,16 +6,18 @@ public class ApiKeyAuthMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly string _authServiceUrl;
+    private readonly IHttpClientFactory _httpClient;
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public ApiKeyAuthMiddleware(RequestDelegate next, IConfiguration configuration)
+    public ApiKeyAuthMiddleware(RequestDelegate next, IConfiguration configuration, IHttpClientFactory httpClientFactory)
     {
         _next = next;
         _authServiceUrl = configuration["AuthService:BaseUrl"]
             ?? throw new InvalidOperationException("AuthService:BaseUrl is not configured");
+        _httpClient = httpClientFactory;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -35,7 +37,7 @@ public class ApiKeyAuthMiddleware
 
         }
 
-        using var httpClient = new HttpClient();
+        var httpClient = _httpClient.CreateClient("AuthService");
         var verifyResponse = await httpClient.PostAsJsonAsync(
             $"{_authServiceUrl}/api-keys/verify",
             new { rawKey = apiKey },

@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+    <PackageReference Include="SkiaSharp" Version="3.119.2" />
     <ProjectReference Include="..\..\shared\persistence\ContentProcessing.Persistence.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.5" />
