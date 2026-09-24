@@ -60,6 +60,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path ".\_out\text2image" | Out-Null
           Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
 
+      - name: Stage viber-automation source
+        run: |
+          New-Item -ItemType Directory -Force -Path ".\_out\viber-automation" | Out-Null
+          Copy-Item ".\backend\viber-automation\*" ".\_out\viber-automation" -Recurse -Force
+
       - name: Run Flyway migrations
         run: |
           flyway -environment=${{ inputs.flyway_env }} migrate
@@ -110,6 +115,33 @@ jobs:
             & $WinswExe start
           }
 
+          function Deploy-ScheduledPythonTask($ServiceName, $SourcePath, $TaskName) {
+            $Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+
+            if ($null -eq $Task) {
+              throw "Scheduled Task not found: $TaskName"
+            }
+
+            Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+
+            $SvcRoot    = Ensure-Dirs $ServiceName
+            $ReleaseDir = Join-Path $SvcRoot "releases\$Version"
+            $AppDir     = Join-Path $ReleaseDir "app"
+            $VenvDir    = Join-Path $ReleaseDir "venv"
+
+            New-Item -ItemType Directory -Force -Path $AppDir | Out-Null
+            Copy-Item "$SourcePath\*" $AppDir -Recurse -Force
+
+            python -m venv $VenvDir
+            & (Join-Path $VenvDir "Scripts\python.exe") -m pip install --upgrade pip
+            & (Join-Path $VenvDir "Scripts\pip.exe") install -r (Join-Path $AppDir "requirements.txt")
+
+            Switch-CurrentJunction $SvcRoot $ReleaseDir
+
+            Start-ScheduledTask -TaskName $TaskName
+          }
+
           Deploy-Service -ServiceName "auth" `
             -SourcePath ".\_out\auth\app" `
             -WinswExeName "AuthService" `
@@ -124,6 +156,11 @@ jobs:
             -SourcePath ".\_out\text2image" `
             -WinswExeName "Text2Image" `
             -NeedsVenv:$true
+
+          Deploy-ScheduledPythonTask `
+            -ServiceName "viber-automation" `
+            -SourcePath ".\_out\viber-automation" `
+            -TaskName "ContentProcessing-Viber-$Suffix"
 
       - name: Health gate
         run: |
@@ -145,6 +182,7 @@ jobs:
           Wait-Health "http://localhost:$base/health"       "AuthService"
           Wait-Health "http://localhost:$($base+1)/health"  "PdfRendererService"
           Wait-Health "http://localhost:$($base+2)/health"  "Text2Image"
+          Wait-Health "http://localhost:$($base+3)/health"  "ViberAutomation"
 
       - name: Failure diagnostics
         if: failure()
