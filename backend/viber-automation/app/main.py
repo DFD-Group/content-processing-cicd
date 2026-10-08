@@ -37,27 +37,34 @@ def create_viber_job(
     data: CreateViberJobRequest,
     session: Session = Depends(get_session),
 ):
-    message = (
-        "Привет,\n"
-        "\n"
-        "Изпратих поръчка за:\n"
-        "\n"
-        f"- Размер: {data.plate_size}\n"
-        f"- Надпис: “{data.sign}”\n"
-        f"- Количество: {data.plate_count}\n"
-        "\n"
-        "Макетът е потвърден.\n"
-        "\n"
-        f"Експедицията на камиона {data.dfd_order_number}, "
-        f"към който принадлежи тази поръчка, ще бъде на "
-        f"{data.expedition_date.strftime('%d.%m.%Y')}."
-    )
+    if data.chat_name == "Лазерно рязане":
+        message = (
+            "Привет,\n"
+            "\n"
+            "Изпратих поръчка за:\n"
+            "\n"
+            f"- Размер: {data.plate_size}\n"
+            f"- Надпис: “{data.sign}”\n"
+            f"- Количество: {data.plate_count}\n"
+            "\n"
+            "Макетът е потвърден.\n"
+            "\n"
+            f"Експедицията на камиона {data.dfd_order_number}, "
+            f"към който принадлежи тази поръчка, ще бъде на "
+            f"{data.expedition_date.strftime('%d.%m.%Y')}."
+        )
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported Viber chat: {data.chat_name}",
+        )
 
     job = ViberJob(
         plate_size=data.plate_size,
         plate_sign=data.sign,
         plate_count=data.plate_count,
         dfd_order_number=data.dfd_order_number,
+        customer_order_number=data.customer_order_number,
         expedition_date=data.expedition_date,
         message_text=message,
         status="pending",
@@ -68,7 +75,7 @@ def create_viber_job(
     session.refresh(job)
 
     try:
-        prepare_viber_message(message)
+        prepare_viber_message(data.chat_name, message)
 
         job.status = "sent"
         job.sent_at = datetime.datetime.now(datetime.timezone.utc)
