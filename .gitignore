@@ -28,3 +28,6 @@ appsettings.Development.json
 
 # Cursor
 .cursor/
+
+# IDE
+.idea/
