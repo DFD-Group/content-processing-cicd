@@ -59,6 +59,12 @@ class ViberJob(Base):
         nullable=False,
         server_default=text("now()"),
     )
+    last_updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+        onupdate=text("now()"),
+    )
     sent_at: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
