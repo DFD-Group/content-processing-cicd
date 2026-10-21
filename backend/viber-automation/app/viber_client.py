@@ -1,3 +1,4 @@
+import logging
 import ctypes
 import os
 import re
@@ -65,6 +66,8 @@ main_content_id_suffix = (
 )
 
 search_result_automation_id = "delegateLoader"
+
+logger = logging.getLogger("uvicorn.error")
 
 
 # =====================================================================
@@ -363,9 +366,9 @@ def prepare_viber_message(
         chat_pane,
     )
 
-    print(
+    logger.info(
+        "Viber chat pane found: %s.",
         chat_pane.element_info.automation_id,
-        flush=True,
     )
 
     message_input_field = next(
@@ -432,8 +435,8 @@ def prepare_viber_message(
         info_sidebar,
     )
 
-    print(
-        "SIDEBAR (стабилен):",
+    logger.info(
+        "Viber info sidebar is stable: %s.",
         info_sidebar.rectangle(),
     )
 
@@ -461,8 +464,8 @@ def prepare_viber_message(
         key=lambda control: control.rectangle().left,
     )
 
-    print(
-        "EDIT BUTTON:",
+    logger.info(
+        "Edit group name button found: %s.",
         edit_group_name_button.rectangle(),
     )
 
@@ -489,12 +492,9 @@ def prepare_viber_message(
         and control.is_visible()
     )
 
-    print(
-        "GROUP NAME INPUT:",
+    logger.info(
+        "Group name input found: rectangle=%s.",
         group_name_input_field.rectangle(),
-        repr(
-            group_name_input_field.window_text()
-        ),
     )
 
     current_group_name = (
@@ -503,9 +503,9 @@ def prepare_viber_message(
         .strip()
     )
 
-    print(
+    logger.info(
+        "Opened Viber group detected: %r.",
         current_group_name,
-        flush=True,
     )
 
     if (
@@ -587,10 +587,9 @@ def prepare_viber_message(
         )
     )
 
-    print(
-        "ПОСЛЕДНО СЪОБЩЕНИЕ:",
-        repr(newest_message_text),
-        flush=True,
+    logger.info(
+        "Newest Viber message retrieved: length=%d.",
+        len(newest_message_text),
     )
 
     if (
@@ -606,9 +605,10 @@ def prepare_viber_message(
     # =====================================================================
     # 9) УСПЕХ И МИНИМИЗИРАНЕ
     # =====================================================================
-    print(
-        "Съобщението е изпратено успешно.",
-        flush=True,
+    logger.info(
+        "Viber message sent and verified successfully "
+        "for chat %r.",
+        current_group_name,
     )
 
     minimize_viber()

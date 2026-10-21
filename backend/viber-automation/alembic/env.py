@@ -13,15 +13,27 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+VIBERAUTOMATION_TABLES = {
+    "viber_jobs",
+}
 
 
-def include_object(object, name, type_, reflected, compare_to):
-    """Следи само таблицата на Viber услугата."""
+def include_object(
+    object,
+    name,
+    type_,
+    reflected,
+    compare_to,
+):
+    """Следи само таблиците на Viber Automation услугата."""
     if type_ == "table":
-        return name == "viber_jobs"
+        return name in VIBERAUTOMATION_TABLES
 
     if hasattr(object, "table"):
-        return object.table.name == "viber_jobs"
+        return (
+            object.table.name
+            in VIBERAUTOMATION_TABLES
+        )
 
     return True
 

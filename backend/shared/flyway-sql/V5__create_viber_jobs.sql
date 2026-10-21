@@ -10,6 +10,7 @@ CREATE TABLE app.viber_jobs (
     status VARCHAR(20) DEFAULT 'pending' NOT NULL,
     error_message TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
     sent_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT viber_jobs_pkey PRIMARY KEY (id)
 );
