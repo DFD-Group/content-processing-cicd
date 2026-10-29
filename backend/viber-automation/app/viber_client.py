@@ -1,4 +1,3 @@
-import logging
 import ctypes
 import os
 import re
@@ -66,8 +65,6 @@ main_content_id_suffix = (
 )
 
 search_result_automation_id = "delegateLoader"
-
-logger = logging.getLogger("uvicorn.error")
 
 
 # =====================================================================
@@ -222,11 +219,13 @@ def escape_for_send_keys(text):
         text,
     )
 
-
 def prepare_viber_message(
     chat_name: str,
     message_text: str,
 ) -> None:
+    group_search_text = chat_name
+    expected_message_text = message_text
+
     # =====================================================================
     # 1) РЕСТАРТИРАНЕ НА VIBER
     # =====================================================================
@@ -274,7 +273,7 @@ def prepare_viber_message(
     search_input_field.click_input()
 
     keyboard.send_keys(
-        escape_for_send_keys(chat_name),
+        escape_for_send_keys(group_search_text),
         with_spaces=True,
     )
 
@@ -366,9 +365,9 @@ def prepare_viber_message(
         chat_pane,
     )
 
-    logger.info(
-        "Viber chat pane found: %s.",
+    print(
         chat_pane.element_info.automation_id,
+        flush=True,
     )
 
     message_input_field = next(
@@ -435,8 +434,8 @@ def prepare_viber_message(
         info_sidebar,
     )
 
-    logger.info(
-        "Viber info sidebar is stable: %s.",
+    print(
+        "SIDEBAR (стабилен):",
         info_sidebar.rectangle(),
     )
 
@@ -464,8 +463,8 @@ def prepare_viber_message(
         key=lambda control: control.rectangle().left,
     )
 
-    logger.info(
-        "Edit group name button found: %s.",
+    print(
+        "EDIT BUTTON:",
         edit_group_name_button.rectangle(),
     )
 
@@ -492,9 +491,12 @@ def prepare_viber_message(
         and control.is_visible()
     )
 
-    logger.info(
-        "Group name input found: rectangle=%s.",
+    print(
+        "GROUP NAME INPUT:",
         group_name_input_field.rectangle(),
+        repr(
+            group_name_input_field.window_text()
+        ),
     )
 
     current_group_name = (
@@ -503,18 +505,18 @@ def prepare_viber_message(
         .strip()
     )
 
-    logger.info(
-        "Opened Viber group detected: %r.",
+    print(
         current_group_name,
+        flush=True,
     )
 
     if (
         current_group_name.casefold()
-        != chat_name.strip().casefold()
+        != group_search_text.strip().casefold()
     ):
         raise RuntimeError(
             "Отворена е грешна Viber група. "
-            f"Търсена група: {chat_name!r}. "
+            f"Търсена група: {group_search_text!r}. "
             f"Отворена група: {current_group_name!r}."
         )
 
@@ -525,7 +527,7 @@ def prepare_viber_message(
     message_input_field.click_input()
 
     message_lines = (
-        message_text.splitlines()
+        expected_message_text.splitlines()
     )
 
     for index, line in enumerate(message_lines):
@@ -587,14 +589,15 @@ def prepare_viber_message(
         )
     )
 
-    logger.info(
-        "Newest Viber message retrieved: length=%d.",
-        len(newest_message_text),
+    print(
+        "ПОСЛЕДНО СЪОБЩЕНИЕ:",
+        repr(newest_message_text),
+        flush=True,
     )
 
     if (
         newest_message_text.strip()
-        != message_text.strip()
+        != expected_message_text.strip()
     ):
         raise RuntimeError(
             "Последното Viber съобщение "
@@ -605,10 +608,9 @@ def prepare_viber_message(
     # =====================================================================
     # 9) УСПЕХ И МИНИМИЗИРАНЕ
     # =====================================================================
-    logger.info(
-        "Viber message sent and verified successfully "
-        "for chat %r.",
-        current_group_name,
+    print(
+        "Съобщението е изпратено успешно.",
+        flush=True,
     )
 
     minimize_viber()
