@@ -17,7 +17,7 @@ jobs:
     runs-on: [self-hosted, windows]
     defaults:
       run:
-       shell: powershell
+        shell: powershell
 
     steps:
       - name: Checkout
@@ -98,7 +98,7 @@ jobs:
           # Copy python service source + requirements into artifact output
           Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
 
-       # -----------------------
+      # -----------------------
       # viber-automation (Python)
       # -----------------------
       - name: Validate viber-automation structure
@@ -115,6 +115,10 @@ jobs:
         working-directory: .\backend\viber-automation
         env:
           DATABASE_URL: postgresql+psycopg://localhost/test
+          PYTHONUTF8: "1"
+          RUN_VIBER_INTEGRATION: "1"
+          VIBER_TEST_CHAT: "Калибровка #CAL-0001"
+          VIBER_TEST_MESSAGE: "CI VIBER TEST - run ${{ github.run_number }} - ${{ steps.vars.outputs.SHORT_SHA }}"
         run: |
           python -m unittest discover -s tests -v
 
