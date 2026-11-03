@@ -1,8 +1,15 @@
 
-name: CI Integration Test Develop
+name: CI - Viber Integration Test - Develop
 
 on:
   push:
+    branches:
+      - develop
+    paths:
+      - "backend/viber-automation/**"
+      - ".github/workflows/ci-viber-integration-test-develop.yml"
+
+  pull_request:
     branches:
       - develop
     paths:
