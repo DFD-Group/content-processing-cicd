@@ -7,6 +7,7 @@ from pywinauto.timings import wait_until_passes
 
 from app.helpers.close_app import close_app
 from app.helpers.diagnose_desktop import diagnose_desktop
+from app.helpers.diagnostic_set_cursor import diagnostic_set_cursor
 from app.helpers.escape_for_send_keys import escape_for_send_keys
 from app.helpers.minimize import minimize
 from app.helpers.restart_app import restart_app
@@ -28,9 +29,6 @@ from app.viber.selectors import (
 from app.viber.send_viber_message import send_viber_message
 from app.viber.validate_group_name import validate_group_name
 from app.viber.validate_last_message import validate_last_message
-from app.helpers.diagnostic_set_cursor import diagnostic_set_cursor
-
-# Validate desktop and mouse access before Viber automation
 
 
 def prepare_viber_message(
@@ -106,8 +104,6 @@ def prepare_viber_message(
             )
         ),
     )
-    diagnose_desktop()
-    diagnostic_set_cursor()
 
     search_input_field = next(
         control
@@ -120,10 +116,15 @@ def prepare_viber_message(
         )
     )
 
-    # Diagnose Windows desktop before mouse interaction.
-
+    # Diagnose Windows desktop and cursor access.
     diagnose_desktop()
-    diagnostic_set_cursor()
+
+    rect = search_input_field.rectangle()
+
+    diagnostic_set_cursor(
+        (rect.left + rect.right) // 2,
+        (rect.top + rect.bottom) // 2,
+    )
 
     search_input_field.click_input()
 
