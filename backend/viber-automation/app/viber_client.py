@@ -121,7 +121,9 @@ def prepare_viber_message(
     )
 
     # Diagnose Windows desktop before mouse interaction.
+
     diagnose_desktop()
+    diagnostic_set_cursor()
 
     search_input_field.click_input()
 
