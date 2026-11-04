@@ -1,3 +1,4 @@
+
 import os
 import re
 
@@ -5,30 +6,31 @@ from pywinauto import Desktop, keyboard
 from pywinauto.timings import wait_until_passes
 
 from app.helpers.close_app import close_app
+from app.helpers.diagnose_desktop import diagnose_desktop
 from app.helpers.escape_for_send_keys import escape_for_send_keys
 from app.helpers.minimize import minimize
 from app.helpers.restart_app import restart_app
-from app.helpers.wait_until_rectangle_is_stable import wait_until_rectangle_is_stable
-from app.viber.click_first_search_result import click_first_search_result
+from app.helpers.wait_until_rectangle_is_stable import (
+    wait_until_rectangle_is_stable,
+)
 
+from app.viber.click_first_search_result import (
+    click_first_search_result,
+)
 from app.viber.find_chat_pane import find_chat_pane
 from app.viber.open_info_sidebar import open_info_sidebar
-
 from app.viber.selectors import (
     edit_group_name_button_id_pattern,
     message_input_id_pattern,
     search_container_id_pattern,
     search_input_id_pattern,
 )
-from app.viber.send_viber_message import (
-    send_viber_message,
-)
-from app.viber.validate_group_name import (
-    validate_group_name,
-)
-from app.viber.validate_last_message import (
-    validate_last_message,
-)
+from app.viber.send_viber_message import send_viber_message
+from app.viber.validate_group_name import validate_group_name
+from app.viber.validate_last_message import validate_last_message
+
+# Validate desktop and mouse access before Viber automation.
+diagnose_desktop()
 
 
 def prepare_viber_message(
@@ -60,7 +62,6 @@ def prepare_viber_message(
         TimeoutError: If a UI control does not appear or become stable
             within the configured timeout.
     """
-
     group_search_text = chat_name
     expected_message_text = message_text
 
@@ -116,6 +117,9 @@ def prepare_viber_message(
             control.element_info.automation_id or "",
         )
     )
+
+    # Diagnose Windows desktop before mouse interaction.
+    diagnose_desktop()
 
     search_input_field.click_input()
 
