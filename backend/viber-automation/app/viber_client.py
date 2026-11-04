@@ -28,9 +28,9 @@ from app.viber.selectors import (
 from app.viber.send_viber_message import send_viber_message
 from app.viber.validate_group_name import validate_group_name
 from app.viber.validate_last_message import validate_last_message
+from app.helpers.diagnostic_set_cursor import diagnostic_set_cursor
 
-# Validate desktop and mouse access before Viber automation.
-diagnose_desktop()
+# Validate desktop and mouse access before Viber automation
 
 
 def prepare_viber_message(
@@ -106,6 +106,8 @@ def prepare_viber_message(
             )
         ),
     )
+    diagnose_desktop()
+    diagnostic_set_cursor()
 
     search_input_field = next(
         control
