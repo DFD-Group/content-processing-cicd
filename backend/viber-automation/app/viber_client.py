@@ -28,6 +28,7 @@ from app.viber.selectors import (
 from app.viber.send_viber_message import send_viber_message
 from app.viber.validate_group_name import validate_group_name
 from app.viber.validate_last_message import validate_last_message
+from app.helpers.minimize_all import minimize_all
 
 
 def prepare_viber_message(
@@ -75,6 +76,8 @@ def prepare_viber_message(
         "Viber",
         "Viber.exe",
     )
+
+    minimize_all()
 
     viber_window = restart_app(
         app_window,
