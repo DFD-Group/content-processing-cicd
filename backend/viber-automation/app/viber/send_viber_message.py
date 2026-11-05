@@ -1,5 +1,7 @@
+
 from pywinauto import keyboard
 
+from app.helpers.diagnose_desktop import diagnose_desktop
 from app.helpers.escape_for_send_keys import (
     escape_for_send_keys,
 )
@@ -14,18 +16,24 @@ def send_viber_message(
 ) -> None:
     """Type and send `message_text` through `message_input_field`.
 
-The function clicks `message_input_field`, splits `message_text` into
-separate lines, and types each line after escaping the special pywinauto
-characters. Shift+Enter is used between lines to preserve line breaks.
-After the input field becomes stable, Enter is pressed to send the message.
+    The function diagnoses desktop access before clicking the input
+    field, then types each line with escaped pywinauto characters.
+    Shift+Enter preserves line breaks, and Enter sends the message.
 
-Args:
-    message_input_field: The Viber message input control.
-    message_text: The complete message that will be typed and sent.
+    Args:
+        message_input_field: The Viber message input control.
+        message_text: The complete message to send.
 
-Returns:
-    None
-"""
+    Returns:
+        None
+    """
+    # Diagnose desktop access before clicking the message field.
+    rect = message_input_field.rectangle()
+
+    diagnose_desktop(
+        (rect.left + rect.right) // 2,
+        (rect.top + rect.bottom) // 2,
+    )
 
     message_input_field.click_input()
 

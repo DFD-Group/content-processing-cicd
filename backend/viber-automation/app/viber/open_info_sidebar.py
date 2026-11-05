@@ -1,7 +1,9 @@
+
 import re
 
 from pywinauto.timings import wait_until_passes
 
+from app.helpers.diagnose_desktop import diagnose_desktop
 from app.helpers.wait_until_rectangle_is_stable import (
     wait_until_rectangle_is_stable,
 )
@@ -14,25 +16,21 @@ from app.viber.selectors import (
 def open_info_sidebar(chat_pane):
     """Find and return the visible Viber info sidebar.
 
-    The function searches for `info_sidebar` among the controls next to
-    `chat_pane`. If `info_sidebar` is already visible, it is used directly
-    without clicking `info_button`. Otherwise, `info_button` is clicked and
-    the function waits up to 30 seconds for `info_sidebar` to become visible.
-    Finally, it waits for the sidebar position to stabilize.
+    If the sidebar is already visible, return it without clicking.
+    Otherwise, diagnose desktop access, click the info button,
+    and wait for the sidebar to appear and stabilize.
 
     Args:
         chat_pane: The current Viber chat pane control.
 
     Returns:
-        UIAWrapper: The visible and stabilized `info_sidebar`.
+        UIAWrapper: The visible and stabilized info sidebar.
 
     Raises:
-        StopIteration: If `info_button` cannot be found.
-        TimeoutError: If `info_sidebar` does not appear within 30 seconds
-            or its position does not stabilize.
-        RuntimeError: If `info_sidebar` is still None after the opening attempt.
+        StopIteration: If a required UI control cannot be found.
+        TimeoutError: If the sidebar does not appear or stabilize.
+        RuntimeError: If the sidebar cannot be opened.
     """
-
     info_button = next(
         control
         for control in chat_pane.descendants(
@@ -67,6 +65,14 @@ def open_info_sidebar(chat_pane):
     )
 
     if info_sidebar is None:
+        # Diagnose desktop access before clicking the info button.
+        rect = info_button.rectangle()
+
+        diagnose_desktop(
+            (rect.left + rect.right) // 2,
+            (rect.top + rect.bottom) // 2,
+        )
+
         info_button.click_input()
 
         info_sidebar = wait_until_passes(
