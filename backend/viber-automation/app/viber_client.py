@@ -7,7 +7,6 @@ from pywinauto.timings import wait_until_passes
 
 from app.helpers.close_app import close_app
 from app.helpers.diagnose_desktop import diagnose_desktop
-from app.helpers.diagnostic_set_cursor import diagnostic_set_cursor
 from app.helpers.escape_for_send_keys import escape_for_send_keys
 from app.helpers.minimize import minimize
 from app.helpers.restart_app import restart_app
@@ -45,6 +44,8 @@ def prepare_viber_message(
     After the group is validated, `message_text` is entered and sent.
     The latest visible message is checked to confirm that it matches
     the sent text. Finally, the Viber window is minimized.
+
+    Desktop and cursor diagnostics are performed only if a direct click fails.
 
     Args:
         chat_name: The exact name of the Viber group.
@@ -116,18 +117,23 @@ def prepare_viber_message(
         )
     )
 
-    # Diagnose Windows desktop and cursor access.
-    diagnose_desktop()
+    try:
+        search_input_field.click_input()
+    except Exception:
+        search_rect = search_input_field.rectangle()
 
-    rect = search_input_field.rectangle()
+        diagnose_desktop(
+            (search_rect.left + search_rect.right) // 2,
+            (search_rect.top + search_rect.bottom) // 2,
+        )
 
-    diagnostic_set_cursor(
-        (rect.left + rect.right) // 2,
-        (rect.top + rect.bottom) // 2,
-    )
+        raise
 
-    search_input_field.click_input()
+    # Clear existing search text.
+    keyboard.send_keys("^a")
+    keyboard.send_keys("{BACKSPACE}")
 
+    # Enter the group name.
     keyboard.send_keys(
         escape_for_send_keys(
             group_search_text,
@@ -205,7 +211,17 @@ def prepare_viber_message(
         edit_group_name_button.rectangle(),
     )
 
-    edit_group_name_button.click_input()
+    try:
+        edit_group_name_button.click_input()
+    except Exception:
+        edit_rect = edit_group_name_button.rectangle()
+
+        diagnose_desktop(
+            (edit_rect.left + edit_rect.right) // 2,
+            (edit_rect.top + edit_rect.bottom) // 2,
+        )
+
+        raise
 
     wait_until_rectangle_is_stable(
         info_sidebar,

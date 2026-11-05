@@ -1,5 +1,7 @@
+
 from pywinauto import Desktop
 
+from app.helpers.diagnose_desktop import diagnose_desktop
 from app.viber.selectors import (
     main_content_id_suffix,
     search_result_automation_id,
@@ -7,15 +9,19 @@ from app.viber.selectors import (
 
 
 def click_first_search_result() -> bool:
-    """Click the topmost visible Viber search result in the first matching group.
+    """Click the topmost visible Viber search result.
+
+    Finds the first matching main content group, selects the topmost
+    visible search result, diagnoses desktop and cursor access,
+    and clicks the result.
 
     Returns:
         bool: True after clicking the result.
 
     Raises:
-        LookupError: If no visible search result with nonzero dimensions is found.
+        LookupError: If no visible search result with nonzero
+            dimensions is found.
     """
-
     current_viber_window = Desktop(
         backend="uia",
     ).window(
@@ -54,6 +60,14 @@ def click_first_search_result() -> bool:
             key=lambda control: (
                 control.rectangle().top
             ),
+        )
+
+        # Diagnose desktop access before clicking the search result.
+        rect = first_search_result.rectangle()
+
+        diagnose_desktop(
+            (rect.left + rect.right) // 2,
+            (rect.top + rect.bottom) // 2,
         )
 
         first_search_result.click_input()
