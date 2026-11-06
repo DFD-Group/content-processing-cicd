@@ -1,0 +1,92 @@
+
+name: CI - Viber Integration Test - Develop
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - "backend/viber-automation/**"
+      - ".github/workflows/ci-viber-integration-test-develop.yml"
+
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "backend/viber-automation/**"
+      - ".github/workflows/ci-viber-integration-test-develop.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: viber-integration-tests
+  cancel-in-progress: false
+
+jobs:
+  viber-integration-tests:
+    name: Viber Integration Tests
+
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - integration-test
+
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: powershell
+        working-directory: backend/viber-automation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Python
+        run: |
+          python --version
+
+      - name: Check interactive session
+        run: |
+          whoami
+          $session = (Get-Process -Id $PID).SessionId
+          Write-Host "Session ID: $session"
+
+          if ($session -eq 0) {
+            throw "Runner is running in Session 0. Interactive desktop required."
+          }
+
+      - name: Check Viber installation
+        run: |
+          $viberPath = Join-Path $env:LOCALAPPDATA "Viber\Viber.exe"
+
+          if (-not (Test-Path $viberPath)) {
+            throw "Viber is not installed for the runner user."
+          }
+
+          Write-Host "Viber found: $viberPath"
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+      - name: Run Viber integration test
+        env:
+          RUN_VIBER_INTEGRATION: "1"
+          PYTHONUTF8: "1"
+          VIBER_TEST_CHAT: "Калибровка #CAL-0001"
+          VIBER_TEST_MESSAGE: "TEST VIBER INTEGRATION"
+        run: |
+          .\.venv\Scripts\python.exe -m unittest discover `
+            -s tests `
+            -p "test_viber_integration.py" `
+            -v

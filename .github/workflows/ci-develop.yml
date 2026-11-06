@@ -1,3 +1,4 @@
+
 name: CI (develop) - build & package
 
 on:
@@ -14,10 +15,11 @@ concurrency:
 jobs:
   build:
     name: Build & Package (Windows self-hosted)
-    runs-on: [self-hosted, windows]
+    runs-on: [self-hosted, Windows, X64, build-package]
+
     defaults:
       run:
-       shell: powershell
+        shell: powershell
 
     steps:
       - name: Checkout
@@ -32,7 +34,7 @@ jobs:
           "SHORT_SHA=$ShortSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
           # Standard output folders inside the job workspace
-          New-Item -ItemType Directory -Force -Path ".\_out\auth", ".\_out\pdf-renderer", ".\_out\text2image", ".\_zips" | Out-Null
+          New-Item -ItemType Directory -Force -Path ".\_out\auth", ".\_out\pdf-renderer", ".\_out\text2image", ".\_out\viber-automation", ".\_zips" | Out-Null
 
       # -----------------------
       # AuthService (.NET)
@@ -100,19 +102,46 @@ jobs:
           Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
 
       # -----------------------
+      # viber-automation (Python)
+      # -----------------------
+      - name: Validate viber-automation structure
+        run: |
+          if (!(Test-Path ".\backend\viber-automation\requirements.txt")) { throw "Missing backend/viber-automation/requirements.txt" }
+          if (!(Test-Path ".\backend\viber-automation\app\main.py")) { throw "Missing backend/viber-automation/app/main.py" }
+          if (!(Test-Path ".\backend\viber-automation\VERSION")) { throw "Missing backend/viber-automation/VERSION" }
+
+      - name: Install viber-automation dependencies
+        run: |
+          python -m pip install -r ".\backend\viber-automation\requirements.txt"
+
+      - name: Test viber-automation
+        working-directory: .\backend\viber-automation
+        env:
+          DATABASE_URL: postgresql+psycopg://localhost/test
+          PYTHONUTF8: "1"
+          RUN_VIBER_INTEGRATION: "0"
+        run: |
+          python -m unittest discover -s tests -v
+
+      - name: Package source (viber-automation)
+        run: |
+          Copy-Item ".\backend\viber-automation\*" ".\_out\viber-automation" -Recurse -Force
+
+      # -----------------------
       # Create ZIPs (Artifacts)
       # -----------------------
       - name: Create ZIP artifacts
         run: |
           # Zip each deployable unit separately
-          Compress-Archive -Path ".\_out\auth\*"        -DestinationPath ".\_zips\AuthService-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\auth\*" -DestinationPath ".\_zips\AuthService-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
           Compress-Archive -Path ".\_out\pdf-renderer\*" -DestinationPath ".\_zips\PdfRendererService-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
-          Compress-Archive -Path ".\_out\text2image\*"   -DestinationPath ".\_zips\text2image-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\text2image\*" -DestinationPath ".\_zips\text2image-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
+          Compress-Archive -Path ".\_out\viber-automation\*" -DestinationPath ".\_zips\viber-automation-${{ steps.vars.outputs.SHORT_SHA }}.zip" -Force
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          # One workflow run publishes three ZIPs
+          # One workflow run publishes four ZIPs
           name: develop-build-${{ github.run_number }}-${{ steps.vars.outputs.SHORT_SHA }}
           path: .\_zips\*.zip
           if-no-files-found: error

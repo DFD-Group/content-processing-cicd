@@ -60,6 +60,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path ".\_out\text2image" | Out-Null
           Copy-Item ".\backend\text2image\*" ".\_out\text2image" -Recurse -Force
 
+      - name: Stage viber-automation source
+        run: |
+          New-Item -ItemType Directory -Force -Path ".\_out\viber-automation" | Out-Null
+          Copy-Item ".\backend\viber-automation\*" ".\_out\viber-automation" -Recurse -Force
+
       - name: Run Flyway migrations
         run: |
           flyway -environment=${{ inputs.flyway_env }} migrate
@@ -125,6 +130,11 @@ jobs:
             -WinswExeName "Text2Image" `
             -NeedsVenv:$true
 
+          Deploy-Service -ServiceName "viber-automation" `
+            -SourcePath ".\_out\viber-automation" `
+            -WinswExeName "ViberAutomation" `
+            -NeedsVenv:$true
+
       - name: Health gate
         run: |
           $base = [int]${{ inputs.health_port_base }}
@@ -145,6 +155,7 @@ jobs:
           Wait-Health "http://localhost:$base/health"       "AuthService"
           Wait-Health "http://localhost:$($base+1)/health"  "PdfRendererService"
           Wait-Health "http://localhost:$($base+2)/health"  "Text2Image"
+          Wait-Health "http://localhost:$($base+3)/health"  "ViberAutomation"
 
       - name: Failure diagnostics
         if: failure()
