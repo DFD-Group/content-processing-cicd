@@ -23,11 +23,15 @@ jobs:
   deploy:
     runs-on: [self-hosted, windows]
     environment: ${{ inputs.environment }}
+    timeout-minutes: 45
     defaults:
       run:
-        shell: powershell
+        shell: pwsh
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      ENV_ROOT: ${{ inputs.env_root }}
+      WINSW_SUFFIX: ${{ inputs.winsw_suffix }}
+      HEALTH_PORT_BASE: ${{ inputs.health_port_base }}
 
     steps:
       - name: Checkout
@@ -41,8 +45,7 @@ jobs:
           Write-Host "Actual:   $actual"
           if ($expected -ne $actual) { throw "Python version mismatch. Expected $expected, got $actual" }
 
-      - name: Compute release version + environment root
-        id: version
+      - name: Compute release version
         run: |
           $ShortSha = "${{ github.sha }}".Substring(0,7)
           $Version = (Get-Content "backend/auth/VERSION" -Raw).Trim()
@@ -52,6 +55,7 @@ jobs:
 
       - name: Publish .NET services (Release)
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           dotnet publish ".\backend\auth\AuthService\AuthService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\auth\app"
           dotnet publish ".\backend\pdf-renderer\PdfRendererService\PdfRendererService.csproj" -c Release -r win-x64 --self-contained true -o ".\_out\pdf-renderer\app"
 
@@ -67,98 +71,112 @@ jobs:
 
       - name: Run Flyway migrations
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           flyway -environment=${{ inputs.flyway_env }} migrate
         working-directory: backend/shared
 
-      - name: Deploy services (atomic current switch)
+      # Phase 1: build every release folder while the services keep running.
+      # If anything fails here, nothing live has been touched.
+      - name: Prepare releases (services still running)
         run: |
-          $EnvRoot = "${{ inputs.env_root }}"
-          $Version = "${{ steps.version.outputs.REL_VERSION }}"
-          $Suffix  = "${{ inputs.winsw_suffix }}"
+          . .\.github\scripts\deploy-common.ps1
+          Remove-Item $StateFile -ErrorAction SilentlyContinue   # never reuse state from an older run
 
-          function Ensure-Dirs($ServiceName) {
-            $SvcRoot = Join-Path $EnvRoot $ServiceName
-            New-Item -ItemType Directory -Force -Path `
-              (Join-Path $SvcRoot "releases"),
-              (Join-Path $SvcRoot "shared\config"),
-              (Join-Path $SvcRoot "shared\logs"),
-              (Join-Path $SvcRoot "shared\data"),
-              (Join-Path $SvcRoot "winsw") | Out-Null
-            return $SvcRoot
-          }
+          foreach ($svc in $Services) {
+            Write-Host "=== Prepare $($svc.Name) $Version ==="
+            Ensure-Dirs $svc
+            $releaseDir = Join-Path (Get-SvcRoot $svc) "releases\$Version"
+            $appDir     = Join-Path $releaseDir 'app'
 
-          function Switch-CurrentJunction($SvcRoot, $ReleaseDir) {
-            $Current = Join-Path $SvcRoot "current"
-            if (Test-Path $Current) { cmd.exe /c "rmdir `"$Current`"" }
-            cmd.exe /c "mklink /J `"$Current`" `"$ReleaseDir`""
-          }
-
-          function Deploy-Service($ServiceName, $SourcePath, $WinswExeName, $NeedsVenv) {
-            $SvcRoot    = Ensure-Dirs $ServiceName
-            $ReleaseDir = Join-Path $SvcRoot "releases\$Version"
-            $AppDir     = Join-Path $ReleaseDir "app"
-            $WinswExe   = Join-Path $EnvRoot "$ServiceName\winsw\$WinswExeName-$Suffix.exe"
-
-            & $WinswExe stop
-
-            New-Item -ItemType Directory -Force -Path $AppDir | Out-Null
-            Copy-Item "$SourcePath\*" $AppDir -Recurse -Force
-
-            if ($NeedsVenv) {
-              $VenvDir = Join-Path $ReleaseDir "venv"
-              python -m venv $VenvDir
-              & (Join-Path $VenvDir "Scripts\python.exe") -m pip install --upgrade pip
-              & (Join-Path $VenvDir "Scripts\pip.exe") install -r (Join-Path $AppDir "requirements.txt")
+            if ((Get-CurrentTarget $svc) -eq (Normalize-Path $releaseDir)) {
+              Write-Host "$($svc.Name): $Version is already live, skipping prepare"
+              continue
             }
+            if (Test-Path $releaseDir) { Remove-Item $releaseDir -Recurse -Force }
 
-            Switch-CurrentJunction $SvcRoot $ReleaseDir
-            & $WinswExe start
+            New-Item -ItemType Directory -Force -Path $appDir | Out-Null
+            Copy-Item "$($svc.Source)\*" $appDir -Recurse -Force
+
+            if ($svc.Venv) {
+              $venv = Join-Path $releaseDir 'venv'
+              $venvPython = Join-Path $venv 'Scripts\python.exe'
+              python -m venv $venv
+              & $venvPython -m pip install --upgrade pip
+              & $venvPython -m pip install -r (Join-Path $appDir 'requirements.txt')
+            }
           }
 
-          Deploy-Service -ServiceName "auth" `
-            -SourcePath ".\_out\auth\app" `
-            -WinswExeName "AuthService" `
-            -NeedsVenv:$false
+      # Phase 2: the actual switch. Only stop -> repoint junction -> start per service.
+      - name: Activate releases
+        run: |
+          . .\.github\scripts\deploy-common.ps1
+          $state = @{}
 
-          Deploy-Service -ServiceName "pdf-renderer" `
-            -SourcePath ".\_out\pdf-renderer\app" `
-            -WinswExeName "PdfRendererService" `
-            -NeedsVenv:$false
+          foreach ($svc in $Services) {
+            Write-Host "=== Activate $($svc.Name) $Version ==="
+            $releaseDir = Join-Path (Get-SvcRoot $svc) "releases\$Version"
 
-          Deploy-Service -ServiceName "text2image" `
-            -SourcePath ".\_out\text2image" `
-            -WinswExeName "Text2Image" `
-            -NeedsVenv:$true
+            # Record the rollback target BEFORE touching the service.
+            $state[$svc.Name] = Get-CurrentTarget $svc
+            $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding utf8
 
-          Deploy-Service -ServiceName "viber-automation" `
-            -SourcePath ".\_out\viber-automation" `
-            -WinswExeName "ViberAutomation" `
-            -NeedsVenv:$true
+            Stop-Svc $svc
+            Set-CurrentJunction $svc $releaseDir
+            Start-Svc $svc
+          }
 
       - name: Health gate
         run: |
-          $base = [int]${{ inputs.health_port_base }}
-
-          function Wait-Health($Url, $Name) {
-            for ($i=1; $i -le 20; $i++) {
-              try {
-                $r = curl.exe -fsS --max-time 5 $Url
-                Write-Host "$Name health response: $r"
-                return
-              } catch {
-                Start-Sleep -Seconds 3
-              }
-            }
-            throw "$Name health check failed: $Url"
+          . .\.github\scripts\deploy-common.ps1
+          $base = [int]$env:HEALTH_PORT_BASE
+          foreach ($svc in $Services) {
+            Wait-Health "http://localhost:$($base + $svc.PortOffset)/health" $svc.Name
           }
 
-          Wait-Health "http://localhost:$base/health"       "AuthService"
-          Wait-Health "http://localhost:$($base+1)/health"  "PdfRendererService"
-          Wait-Health "http://localhost:$($base+2)/health"  "Text2Image"
-          Wait-Health "http://localhost:$($base+3)/health"  "ViberAutomation"
+      - name: Prune old releases
+        run: |
+          . .\.github\scripts\deploy-common.ps1
+          $keep = 3
+          foreach ($svc in $Services) {
+            $current = Get-CurrentTarget $svc
+            Get-ChildItem (Join-Path (Get-SvcRoot $svc) 'releases') -Directory -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -like '*+*' } |
+              Sort-Object CreationTime -Descending |
+              Select-Object -Skip $keep |
+              Where-Object { (Normalize-Path $_.FullName) -ne $current } |
+              ForEach-Object {
+                Write-Host "Pruning $($_.FullName)"
+                Remove-Item $_.FullName -Recurse -Force
+              }
+          }
 
+      # Diagnostics first (capture logs of the failed release), then roll back.
       - name: Failure diagnostics
         if: failure()
         uses: ./.github/actions/failure-diagnostics
         with:
           default_env_root: ${{ inputs.env_root }}
+
+      - name: Rollback to previous release
+        if: failure()
+        run: |
+          . .\.github\scripts\deploy-common.ps1
+          if (-not (Test-Path $StateFile)) {
+            Write-Host "No service was activated, nothing to roll back"
+            exit 0
+          }
+
+          $state = Get-Content $StateFile -Raw | ConvertFrom-Json -AsHashtable
+          foreach ($svc in $Services) {
+            if (-not $state.ContainsKey($svc.Name)) { continue }
+            $prev = $state[$svc.Name]
+            if (-not $prev) {
+              Write-Warning "$($svc.Name): no previous release to roll back to"
+              continue
+            }
+
+            Write-Host "=== Rollback $($svc.Name) -> $prev ==="
+            Stop-Svc $svc
+            Set-CurrentJunction $svc $prev
+            Start-Svc $svc
+          }
