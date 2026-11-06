@@ -39,7 +39,7 @@ jobs:
 
     defaults:
       run:
-        shell: powershell
+        shell: pwsh
         working-directory: backend/viber-automation
 
     steps:
